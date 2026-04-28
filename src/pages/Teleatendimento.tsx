@@ -848,22 +848,40 @@ export default function Teleatendimento() {
           </Card>
         )}
 
-        {/* If status is capturing but not local (page was refreshed) */}
-        {activeSession.status === "capturing" && !isCapturing && (
-          <Card className="border-destructive/20">
+        {/* If status is capturing but not local (page was refreshed or stuck) */}
+        {(activeSession.status === "capturing" || (activeSession.status !== "completed" && activeSession.status !== "waiting" && new Date().getTime() - new Date(activeSession.createdAt).getTime() > 24 * 60 * 60 * 1000)) && !isCapturing && (
+          <Card className="border-destructive/20 bg-destructive/5">
             <CardContent className="p-4 md:p-6 space-y-4">
               <div className="flex items-center gap-3">
-                <Mic className="h-5 w-5 text-destructive animate-pulse" />
-                <span className="font-medium text-foreground">Captura ativa (outra aba/sessão)</span>
+                <AlertCircle className="h-5 w-5 text-destructive" />
+                <span className="font-medium text-foreground">Sessão Travada ou Captura Externa</span>
               </div>
-              <p className="text-xs text-muted-foreground">Se você recarregou a página, encerre a captura para iniciar novamente.</p>
-              <div className="flex gap-2">
-                <Button variant="destructive" onClick={() => stopBackendCaptureMutation.mutate(activeSession.id)}
-                  disabled={stopBackendCaptureMutation.isPending} className="gap-2">
+              <p className="text-sm text-muted-foreground">
+                Esta sessão parece estar com o status "Capturando" há algum tempo. Se você não está gravando ativamente agora, você deve encerrar a captura manualmente para liberar o processamento ou excluir a sessão.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button 
+                  variant="destructive" 
+                  onClick={() => stopBackendCaptureMutation.mutate(activeSession.id)}
+                  disabled={stopBackendCaptureMutation.isPending} 
+                  className="gap-2"
+                >
                   {stopBackendCaptureMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <PhoneOff className="h-4 w-4" />}
-                  Encerrar Captura
+                  Forçar Encerramento
                 </Button>
-                <Button variant="outline" onClick={() => setActiveSession(null)} className="gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    if (confirm("Tem certeza que deseja excluir esta sessão permanentemente?")) {
+                      deleteMutation.mutate(activeSession.id);
+                      setActiveSession(null);
+                    }
+                  }} 
+                  className="gap-2 text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4" /> Excluir Sessão
+                </Button>
+                <Button variant="ghost" onClick={() => setActiveSession(null)} className="gap-2">
                   <ArrowLeft className="h-4 w-4" /> Voltar
                 </Button>
               </div>
@@ -963,6 +981,16 @@ export default function Teleatendimento() {
                               processMutation.mutate(s.id);
                             }} disabled={processMutation.isPending}>
                               <Brain className="h-3 w-3" /> Processar IA
+                            </Button>
+                          )}
+                          {s.status === "capturing" && (
+                            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-destructive" onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm("Deseja forçar o encerramento desta captura?")) {
+                                stopBackendCaptureMutation.mutate(s.id);
+                              }
+                            }}>
+                              <PhoneOff className="h-3 w-3" /> Parar Captura
                             </Button>
                           )}
                           {s.processingStatus === "error" && (
