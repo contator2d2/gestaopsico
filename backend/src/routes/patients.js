@@ -103,6 +103,9 @@ function mapPatient(p) {
     emotional_patterns: p.emotionalPatterns,
     triggers: p.triggers,
     defense_mechanisms: p.defenseMechanisms,
+    tags: p.tags || [],
+    is_mentorado: p.isMentorado || false,
+    eventParticipations: p.eventParticipations || [],
   };
 }
 
@@ -140,6 +143,8 @@ function mapInput(body) {
   if (body.emotional_patterns !== undefined) data.emotionalPatterns = body.emotional_patterns || null;
   if (body.triggers !== undefined) data.triggers = body.triggers || null;
   if (body.defense_mechanisms !== undefined) data.defenseMechanisms = body.defense_mechanisms || null;
+  if (body.tags !== undefined) data.tags = body.tags || [];
+  if (body.is_mentorado !== undefined) data.isMentorado = Boolean(body.is_mentorado);
   return data;
 }
 
@@ -197,7 +202,10 @@ router.get('/', async (req, res) => {
 
     const patients = await prisma.patient.findMany({
       where,
-      include: { professional: { select: { id: true, name: true } } },
+      include: { 
+        professional: { select: { id: true, name: true } },
+        eventParticipations: { select: { id: true, eventId: true } }
+      },
       orderBy: { createdAt: 'desc' }
     });
 
