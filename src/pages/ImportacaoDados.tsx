@@ -191,32 +191,60 @@ export default function ImportacaoDados() {
     }
   }, []);
 
-  const handlePreview = async () => {
+  const handleToMapping = () => {
     if (!patientsData.length && !sessionsData.length) {
       toast.error("Carregue pelo menos um arquivo");
       return;
     }
+    setStep("mapping");
+  };
+
+  const validateAndTransformData = (data: any[], mapping: Record<string, string>) => {
+    return data.map(row => {
+      const newRow: any = {};
+      Object.entries(mapping).forEach(([target, source]) => {
+        newRow[target] = row[source];
+      });
+      return newRow;
+    });
+  };
+
+  const handlePreview = async () => {
+    // Check required fields before preview
+    if (patientsFile) {
+      if (!patientMapping["Nome"]) {
+        toast.error("Mapeie a coluna 'Nome' na planilha de pacientes.");
+        return;
+      }
+    }
+    if (sessionsFile) {
+      if (!sessionMapping["Paciente"] || !sessionMapping["Data"]) {
+        toast.error("Mapeie as colunas 'Paciente' e 'Data' na planilha de sessões.");
+        return;
+      }
+    }
+
     try {
-      // Logic for preview based on uploaded data
-      // If backend preview isn't available, we simulate it
+      const mappedPatients = validateAndTransformData(patientsData, patientMapping);
+      const mappedSessions = validateAndTransformData(sessionsData, sessionMapping);
+
       let data;
       try {
-        data = await importApi.preview(patientsData, sessionsData);
+        data = await importApi.preview(mappedPatients, mappedSessions);
       } catch (e) {
-        // Mock preview logic if API fails (useful for local development or if endpoint is missing)
         data = {
-          patients: patientsData.length,
-          sessions: sessionsData.length,
+          patients: mappedPatients.length,
+          sessions: mappedSessions.length,
           couples: [],
           futureAppointments: 0,
-          pastSessions: sessionsData.length,
+          pastSessions: mappedSessions.length,
           cancelledSessions: 0,
-          financialEntries: sessionsData.length
+          financialEntries: mappedSessions.length
         };
       }
       setPreview(data);
       setStep("preview");
-    } catch {
+    } catch (err) {
       toast.error("Erro ao gerar preview");
     }
   };
@@ -224,7 +252,10 @@ export default function ImportacaoDados() {
   const handleImport = async () => {
     setImporting(true);
     try {
-      const data = await importApi.execute(patientsData, sessionsData);
+      const mappedPatients = validateAndTransformData(patientsData, patientMapping);
+      const mappedSessions = validateAndTransformData(sessionsData, sessionMapping);
+      
+      const data = await importApi.execute(mappedPatients, mappedSessions);
       setResult(data);
       setStep("done");
       qc.invalidateQueries({ queryKey: ["import-batches"] });
