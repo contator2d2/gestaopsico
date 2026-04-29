@@ -90,36 +90,44 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-background/60 border border-border shadow-sm">
-                <AlertCircle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold">Alerta de Recaída</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">3 pacientes registraram queda abrupta no humor nos últimos 2 dias.</p>
-                  <Button variant="link" size="sm" className="p-0 h-auto text-xs font-semibold mt-1" asChild>
-                    <Link to="/pacientes">Ver detalhes</Link>
+              {totalPatients > 0 ? (
+                <>
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-background/60 border border-border shadow-sm">
+                    <AlertCircle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold">Alertas de Saúde</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Nenhum alerta crítico detectado para seus pacientes ativos.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-background/60 border border-border shadow-sm">
+                    <TrendingUp className="w-5 h-5 text-success shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold">Evolução do Mês</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Seus pacientes estão mantendo uma frequência estável de consultas.</p>
+                      <Button variant="link" size="sm" className="p-0 h-auto text-xs font-semibold mt-1" asChild>
+                        <Link to="/relatorios">Ver relatórios</Link>
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-background/60 border border-border shadow-sm">
+                    <Brain className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold">IA Assistente</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">A IA está pronta para ajudar na análise dos seus prontuários.</p>
+                      <Button variant="link" size="sm" className="p-0 h-auto text-xs font-semibold mt-1" asChild>
+                        <Link to="/assistente-ia">Acessar IA</Link>
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="col-span-full py-6 text-center">
+                  <p className="text-sm text-muted-foreground">Cadastre pacientes para começar a receber insights clínicos automáticos.</p>
+                  <Button variant="link" size="sm" asChild className="mt-2">
+                    <Link to="/pacientes">Cadastrar Paciente</Link>
                   </Button>
                 </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-background/60 border border-border shadow-sm">
-                <TrendingUp className="w-5 h-5 text-success shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold">Evolução Positiva</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">O grupo de "Ansiedade" apresentou melhora de 15% após os exercícios de TCC.</p>
-                  <Button variant="link" size="sm" className="p-0 h-auto text-xs font-semibold mt-1" asChild>
-                    <Link to="/relatorios">Ver análise</Link>
-                  </Button>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-background/60 border border-border shadow-sm">
-                <Brain className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold">Sugestão de Recurso</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Pacientes com "Insônia" podem se beneficiar do novo guia de Higiene do Sono.</p>
-                  <Button variant="link" size="sm" className="p-0 h-auto text-xs font-semibold mt-1" asChild>
-                    <Link to="/assistente-ia">Gerar recomendação</Link>
-                  </Button>
-                </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
