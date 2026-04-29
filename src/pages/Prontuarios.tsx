@@ -110,6 +110,7 @@ export default function Prontuarios() {
     mutationFn: ({ id, data }: { id: string; data: Partial<Consulta> }) => consultasApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["patient-appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-financial-detail"] });
       toast.success("Consulta atualizada");
       setEditAptDialog(false);
       setEditingApt(null);
@@ -310,31 +311,38 @@ export default function Prontuarios() {
             </p>
           </div>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="gradient-primary border-0 shadow-glow" onClick={() => {
-              const newForm = { ...EMPTY_FORM };
-              if (selectedEntity?.type === "patient") newForm.patientId = selectedEntity.id;
-              if (selectedEntity?.type === "couple") { newForm.coupleId = selectedEntity.id; newForm.type = "couple"; }
-              setForm(newForm);
-            }}>
-              <Plus className="w-4 h-4 mr-2" /> Novo Prontuário
+        <div className="flex gap-2">
+          {selectedEntity?.type === "patient" && (
+            <Button variant="outline" onClick={() => setEditAptDialog(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Lançar Sessão Passada
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary" /> Novo Prontuário
-              </DialogTitle>
-            </DialogHeader>
-            <RecordForm
-              form={form} setForm={setForm}
-              patients={patients} appointments={patientAppointments}
-              onSubmit={handleCreate} isLoading={createMutation.isPending}
-              submitLabel="Criar Prontuário"
-            />
-          </DialogContent>
-        </Dialog>
+          )}
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="gradient-primary border-0 shadow-glow" onClick={() => {
+                const newForm = { ...EMPTY_FORM };
+                if (selectedEntity?.type === "patient") newForm.patientId = selectedEntity.id;
+                if (selectedEntity?.type === "couple") { newForm.coupleId = selectedEntity.id; newForm.type = "couple"; }
+                setForm(newForm);
+              }}>
+                <Plus className="w-4 h-4 mr-2" /> Novo Prontuário
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" /> Novo Prontuário
+                </DialogTitle>
+              </DialogHeader>
+              <RecordForm
+                form={form} setForm={setForm}
+                patients={patients} appointments={patientAppointments}
+                onSubmit={handleCreate} isLoading={createMutation.isPending}
+                submitLabel="Criar Prontuário"
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
