@@ -522,7 +522,7 @@ async function processTranscription(sessionId, userId, notes = {}) {
       data: {
         recordId: record.id,
         structuredContent: structured ? JSON.stringify(structured) : null,
-        aiOrganizedContent: structured?.resumo || null,
+        aiOrganizedContent: structured?.resumo_profissional || structured?.resumo || null,
         processingStatus: 'completed',
         updatedAt: new Date()
       }
