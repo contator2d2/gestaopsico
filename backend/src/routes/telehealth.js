@@ -481,16 +481,20 @@ async function processTranscription(sessionId, userId, notes = {}) {
     }
 
     // Create record
-      // Normalize fields that may come as arrays from AI but are String in schema
-      const clinicalObs = structured?.observacoes_relevantes;
+      // Normalize fields for backward compatibility and structured view
+      const clinicalObs = structured?.objetivo?.observacoes_clinicas || structured?.observacoes_relevantes;
       const clinicalObsStr = Array.isArray(clinicalObs) ? clinicalObs.join('; ') : (clinicalObs || null);
-      const keyPointsRaw = structured?.pontos_principais;
+      
+      const keyPointsRaw = structured?.resumo_profissional || structured?.pontos_principais;
       const keyPointsStr = Array.isArray(keyPointsRaw) ? keyPointsRaw.join('; ') : (keyPointsRaw || null);
-      const evolutionRaw = structured?.evolucao;
+      
+      const evolutionRaw = structured?.avaliacao?.analise_clinica || structured?.evolucao;
       const evolutionStr = Array.isArray(evolutionRaw) ? evolutionRaw.join('; ') : (evolutionRaw || null);
-      const nextStepsRaw = structured?.encaminhamentos;
+      
+      const nextStepsRaw = structured?.planos?.encaminhamentos || structured?.encaminhamentos;
       const nextStepsStr = Array.isArray(nextStepsRaw) ? nextStepsRaw.join('; ') : (nextStepsRaw || null);
-      const complaintRaw = structured?.motivo_sessao;
+      
+      const complaintRaw = structured?.subjetivo?.queixa_principal || structured?.motivo_sessao;
       const complaintStr = Array.isArray(complaintRaw) ? complaintRaw.join('; ') : (complaintRaw || notes.motivo || null);
 
       const record = await prisma.record.create({
