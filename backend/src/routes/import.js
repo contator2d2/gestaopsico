@@ -47,9 +47,14 @@ router.post('/xlsx', async (req, res) => {
     // ── 1) Build patient map ────────────────────────────────
     const patientRows = (rawPatients || []).map(r => ({
       name: (r['Nome'] || r.name || '').trim(),
-      email: (r['Email'] || r.email || '').trim() || null,
+      email: (r['E-mail'] || r['Email'] || r.email || '').trim() || null,
       phone: (r['Telefone'] || r.phone || '').trim() || null,
       notes: (r['Observações'] || r.notes || '').trim() || null,
+      cpf: (r['CPF'] || r.cpf || '').trim() || null,
+      cep: (r['CEP'] || r.cep || '').trim() || null,
+      address: (r['Endereço'] || r.address || '').trim() || null,
+      birthDate: parseDate(r['Data de Nascimento'] || r.birthDate),
+      paymentDate: parseDate(r['Data de Pagamento'] || r.paymentDate),
       createdAt: parseDate(r['Criado em'] || r.createdAt),
     })).filter(r => r.name && !/^teste?$/i.test(r.name));
 
