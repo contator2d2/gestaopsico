@@ -1039,7 +1039,7 @@ export default function Prontuarios() {
                 <Label>Data</Label>
                 <Input 
                   type="date" 
-                  value={editingApt?.date ? new Date(editingApt.date).toISOString().split("T")[0] : ""} 
+                  value={editingApt?.date ? (typeof editingApt.date === 'string' ? editingApt.date.split("T")[0] : format(editingApt.date, "yyyy-MM-dd")) : ""} 
                   onChange={e => setEditingApt(prev => ({ ...prev, date: e.target.value }))}
                 />
               </div>
