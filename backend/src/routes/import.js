@@ -84,19 +84,41 @@ router.post('/xlsx', async (req, res) => {
     const { patients: rawPatients, sessions: rawSessions, preview } = req.body;
     const userId = req.userId;
 
-    // ── 1) Build patient map ────────────────────────────────
-    const patientRows = (rawPatients || []).map(r => ({
-      name: str(r['Nome'] || r.name).trim(),
-      email: str(r['E-mail'] || r['Email'] || r.email).trim() || null,
-      phone: str(r['Telefone'] || r.phone).trim() || null,
-      notes: str(r['Observações'] || r.notes).trim() || null,
-      cpf: str(r['CPF'] || r.cpf).trim() || null,
-      cep: str(r['CEP'] || r.cep).trim() || null,
-      address: str(r['Endereço'] || r.address).trim() || null,
-      birthDate: parseDate(r['Data de Nascimento'] || r.birthDate),
-      paymentDate: parseDate(r['Data de Pagamento'] || r.paymentDate),
-      createdAt: parseDate(r['Criado em'] || r.createdAt),
-    })).filter(r => r.name && !/^teste?$/i.test(r.name));
+    const axios = require('axios');
+    const patientRows = await Promise.all((rawPatients || []).map(async r => {
+      const row = {
+        name: str(r['Nome'] || r.name).trim(),
+        email: str(r['E-mail'] || r['Email'] || r.email).trim() || null,
+        phone: str(r['Telefone'] || r.phone).trim() || null,
+        notes: str(r['Observações'] || r.notes).trim() || null,
+        cpf: str(r['CPF'] || r.cpf).trim() || null,
+        cep: str(r['CEP'] || r.cep).trim() || null,
+        address: str(r['Endereço'] || r.address).trim() || null,
+        birthDate: parseDate(r['Data de Nascimento'] || r.birthDate),
+        paymentDate: parseDate(r['Data de Pagamento'] || r.paymentDate),
+        createdAt: parseDate(r['Criado em'] || r.createdAt),
+      };
+
+      // Try to fetch address if CEP is present and address is empty
+      if (row.cep && (!row.address || row.address.length < 5)) {
+        const cleanCep = row.cep.replace(/\D/g, '');
+        if (cleanCep.length === 8) {
+          try {
+            const resp = await axios.get(`https://viacep.com.br/ws/${cleanCep}/json/`, { timeout: 2000 });
+            if (resp.data && !resp.data.erro) {
+              const info = resp.data;
+              row.address = `${info.logradouro}${info.bairro ? `, ${info.bairro}` : ''}${info.localidade ? ` - ${info.localidade}` : ''}${info.uf ? `/${info.uf}` : ''}`;
+            }
+          } catch (e) {
+            console.error('Error fetching CEP:', cleanCep, e.message);
+          }
+        }
+      }
+
+      return row;
+    }));
+
+    const finalPatientRows = patientRows.filter(r => r.name && !/^teste?$/i.test(r.name));
 
     // ── 2) Build session list ───────────────────────────────
     const sessionRows = (rawSessions || []).map(r => {
