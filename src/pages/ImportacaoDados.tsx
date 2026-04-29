@@ -369,7 +369,7 @@ export default function ImportacaoDados() {
                 <div className="grid md:grid-cols-2 gap-4 text-xs text-muted-foreground">
                   <div>
                     <p className="font-medium text-foreground mb-1">pacientes.xlsx</p>
-                    <p>Nome | Email | Telefone | Psicólogo | Observações | Criado em</p>
+                    <p>Nome | Data de nascimento | CPF | CEP | Endereço | Telefone | E-mail | Data de pagamento</p>
                   </div>
                   <div>
                     <p className="font-medium text-foreground mb-1">sessoes.xlsx</p>
