@@ -144,7 +144,7 @@ router.post('/xlsx', async (req, res) => {
     }).filter(r => r.patientName && r.date);
 
     // ── 3) Detect couples ───────────────────────────────────
-    const couplePatients = patientRows.filter(p => {
+    const couplePatients = finalPatientRows.filter(p => {
       const { isCoupleSession } = detectCoupleInfo(p.name, p.notes);
       return isCoupleSession;
     });
