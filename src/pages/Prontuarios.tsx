@@ -558,7 +558,7 @@ export default function Prontuarios() {
                           <CardContent>
                             <p className="text-xs text-muted-foreground mb-2">
                               <Clock className="w-3 h-3 inline mr-1" />
-                              {format(new Date(record.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                              {format(new Date(record.date.includes('T') ? record.date : record.date + 'T12:00:00'), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                               {record.appointment && ` • ${record.appointment.time}`}
                             </p>
                             {record.complaint && (
@@ -1273,10 +1273,10 @@ function AppointmentCard({ apt, onEdit, onCancel, onAttend, onMiss, isPast, isCa
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex flex-col items-center text-center bg-muted rounded-lg px-3 py-2 min-w-[60px]">
               <span className="text-lg font-bold text-foreground leading-none">
-                {format(new Date(apt.date), "dd")}
+                {format(new Date(apt.date.includes('T') ? apt.date : apt.date + 'T12:00:00'), "dd")}
               </span>
               <span className="text-[10px] text-muted-foreground uppercase">
-                {format(new Date(apt.date), "MMM yyyy", { locale: ptBR })}
+                {format(new Date(apt.date.includes('T') ? apt.date : apt.date + 'T12:00:00'), "MMM yyyy", { locale: ptBR })}
               </span>
             </div>
             <div className="min-w-0">
