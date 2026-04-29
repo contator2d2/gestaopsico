@@ -9,10 +9,15 @@ router.use(authMiddleware);
 
 // ── helpers ──────────────────────────────────────────────────
 function parseDate(raw) {
-  if (!raw) return null;
+  if (raw === null || raw === undefined || raw === '') return null;
   if (raw instanceof Date) {
-    if (isNaN(raw.getTime())) return null;
-    return raw;
+    return isValidDate(raw) ? raw : null;
+  }
+  // Excel serial as number
+  if (typeof raw === 'number' && raw > 1 && raw < 80000) {
+    const d = new Date(1899, 11, 30);
+    d.setDate(d.getDate() + Math.floor(raw));
+    return isValidDate(d) ? d : null;
   }
   const s = String(raw).trim();
   if (!s) return null;
@@ -28,21 +33,32 @@ function parseDate(raw) {
   const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m2) {
     const d = new Date(Number(m2[1]), Number(m2[2]) - 1, Number(m2[3]));
-    return isNaN(d.getTime()) ? null : d;
+    return isValidDate(d) ? d : null;
   }
 
-  // Try standard JS date parsing
-  const d = new Date(s);
-  if (!isNaN(d.getTime())) return d;
-
-  // Excel serial (as string)
-  if (/^\d{5}$/.test(s)) {
-    const d2 = new Date(1899, 11, 30);
-    d2.setDate(d2.getDate() + Number(s));
-    return isNaN(d2.getTime()) ? null : d2;
+  // Excel serial number (as string of digits, typically 4-5 chars, between ~1900 and ~2100)
+  if (/^\d{4,6}$/.test(s)) {
+    const n = Number(s);
+    if (n > 1 && n < 80000) {
+      const d2 = new Date(1899, 11, 30);
+      d2.setDate(d2.getDate() + n);
+      if (isValidDate(d2)) return d2;
+    }
   }
-  
+
+  // Try standard JS date parsing as last resort (only if it looks like a date)
+  if (/[-/T:]/.test(s)) {
+    const d = new Date(s);
+    if (isValidDate(d)) return d;
+  }
+
   return null;
+}
+
+function isValidDate(d) {
+  if (!d || isNaN(d.getTime())) return false;
+  const y = d.getFullYear();
+  return y >= 1900 && y <= 2100;
 }
 
 function normalise(name) {
