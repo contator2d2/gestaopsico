@@ -149,6 +149,11 @@ router.post('/xlsx', async (req, res) => {
         if (!existing.email && p.email) updates.email = p.email;
         if (!existing.phone && p.phone) updates.phone = p.phone;
         if (!existing.clinicalNotes && p.notes) updates.clinicalNotes = p.notes;
+        if (!existing.cpf && p.cpf) updates.cpf = p.cpf;
+        if (!existing.cep && p.cep) updates.cep = p.cep;
+        if (!existing.address && p.address) updates.address = p.address;
+        if (!existing.birth_date && p.birthDate) updates.birth_date = p.birthDate;
+
         if (Object.keys(updates).length) {
           await prisma.patient.update({ where: { id: existing.id }, data: updates });
         }
@@ -161,6 +166,10 @@ router.post('/xlsx', async (req, res) => {
           email: p.email,
           phone: p.phone,
           clinicalNotes: p.notes,
+          cpf: p.cpf,
+          cep: p.cep,
+          address: p.address,
+          birth_date: p.birthDate,
           importBatchId: batch.id,
           createdAt: p.createdAt || new Date(),
         }
