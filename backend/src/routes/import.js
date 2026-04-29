@@ -46,7 +46,13 @@ function parseDate(raw) {
 }
 
 function normalise(name) {
-  return (name || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  return str(name).trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function str(v) {
+  if (v === null || v === undefined) return '';
+  if (v instanceof Date) return v.toISOString();
+  return String(v);
 }
 
 function detectCoupleInfo(name, notes) {
@@ -64,13 +70,13 @@ router.post('/xlsx', async (req, res) => {
 
     // ── 1) Build patient map ────────────────────────────────
     const patientRows = (rawPatients || []).map(r => ({
-      name: (r['Nome'] || r.name || '').trim(),
-      email: (r['E-mail'] || r['Email'] || r.email || '').trim() || null,
-      phone: (r['Telefone'] || r.phone || '').trim() || null,
-      notes: (r['Observações'] || r.notes || '').trim() || null,
-      cpf: (r['CPF'] || r.cpf || '').trim() || null,
-      cep: (r['CEP'] || r.cep || '').trim() || null,
-      address: (r['Endereço'] || r.address || '').trim() || null,
+      name: str(r['Nome'] || r.name).trim(),
+      email: str(r['E-mail'] || r['Email'] || r.email).trim() || null,
+      phone: str(r['Telefone'] || r.phone).trim() || null,
+      notes: str(r['Observações'] || r.notes).trim() || null,
+      cpf: str(r['CPF'] || r.cpf).trim() || null,
+      cep: str(r['CEP'] || r.cep).trim() || null,
+      address: str(r['Endereço'] || r.address).trim() || null,
       birthDate: parseDate(r['Data de Nascimento'] || r.birthDate),
       paymentDate: parseDate(r['Data de Pagamento'] || r.paymentDate),
       createdAt: parseDate(r['Criado em'] || r.createdAt),
@@ -80,22 +86,22 @@ router.post('/xlsx', async (req, res) => {
     const sessionRows = (rawSessions || []).map(r => {
       const value = parseFloat(r['Valor Esperado'] || r.expectedValue || 0) || 0;
       const paidValue = parseFloat(r['Valor Pago'] || r.paidValue || 0) || 0;
-      const statusRaw = (r['Status'] || r.status || '').toLowerCase();
-      const paymentRaw = (r['Pagamento'] || r.payment || '').toLowerCase();
+      const statusRaw = str(r['Status'] || r.status).toLowerCase();
+      const paymentRaw = str(r['Pagamento'] || r.payment).toLowerCase();
       let status = 'scheduled';
       if (statusRaw.includes('realizada')) status = 'completed';
       else if (statusRaw.includes('cancelada')) status = 'cancelled';
 
       return {
-        patientName: (r['Paciente'] || r.patient || '').trim(),
+        patientName: str(r['Paciente'] || r.patient).trim(),
         date: parseDate(r['Data'] || r.date),
-        time: (r['Horário'] || r.time || '09:00').toString().substring(0, 5),
+        time: str(r['Horário'] || r.time || '09:00').substring(0, 5),
         duration: parseInt(r['Duração (min)'] || r.duration || 50),
         status,
         value,
         paidValue,
         isPaid: paymentRaw.includes('pago'),
-        notes: (r['Observações'] || r.notes || '').trim() || null,
+        notes: str(r['Observações'] || r.notes).trim() || null,
       };
     }).filter(r => r.patientName && r.date);
 
