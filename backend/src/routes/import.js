@@ -10,20 +10,38 @@ router.use(authMiddleware);
 // ── helpers ──────────────────────────────────────────────────
 function parseDate(raw) {
   if (!raw) return null;
-  if (raw instanceof Date) return raw;
+  if (raw instanceof Date) {
+    if (isNaN(raw.getTime())) return null;
+    return raw;
+  }
   const s = String(raw).trim();
+  if (!s) return null;
+
   // dd/mm/yyyy
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  if (m) {
+    const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  
   // yyyy-mm-dd
   const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m2) return new Date(Number(m2[1]), Number(m2[2]) - 1, Number(m2[3]));
-  // Excel serial
-  if (/^\d{5}$/.test(s)) {
-    const d = new Date(1899, 11, 30);
-    d.setDate(d.getDate() + Number(s));
-    return d;
+  if (m2) {
+    const d = new Date(Number(m2[1]), Number(m2[2]) - 1, Number(m2[3]));
+    return isNaN(d.getTime()) ? null : d;
   }
+
+  // Try standard JS date parsing
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return d;
+
+  // Excel serial (as string)
+  if (/^\d{5}$/.test(s)) {
+    const d2 = new Date(1899, 11, 30);
+    d2.setDate(d2.getDate() + Number(s));
+    return isNaN(d2.getTime()) ? null : d2;
+  }
+  
   return null;
 }
 
