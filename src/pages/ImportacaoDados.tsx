@@ -336,11 +336,11 @@ export default function ImportacaoDados() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Button onClick={handlePreview} disabled={!patientsData.length && !sessionsData.length} className="gap-2">
-                <Eye className="w-4 h-4" /> Visualizar Preview
+              <Button onClick={handleToMapping} disabled={!patientsData.length && !sessionsData.length} className="gap-2">
+                <ArrowRight className="w-4 h-4" /> Próximo: Mapear Colunas
               </Button>
               <p className="text-xs text-muted-foreground">
-                Nenhum dado será importado até você confirmar
+                Mapeie as colunas da sua planilha antes de importar
               </p>
             </div>
 
