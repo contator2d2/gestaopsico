@@ -170,7 +170,7 @@ router.post('/xlsx', async (req, res) => {
         if (!existing.cpf && p.cpf) updates.cpf = p.cpf;
         if (!existing.cep && p.cep) updates.cep = p.cep;
         if (!existing.address && p.address) updates.address = p.address;
-        if (!existing.birth_date && p.birthDate) updates.birth_date = p.birthDate;
+        if (!existing.birthDate && p.birthDate) updates.birthDate = p.birthDate;
 
         if (Object.keys(updates).length) {
           await prisma.patient.update({ where: { id: existing.id }, data: updates });
@@ -187,7 +187,7 @@ router.post('/xlsx', async (req, res) => {
           cpf: p.cpf,
           cep: p.cep,
           address: p.address,
-          birth_date: p.birthDate,
+          birthDate: p.birthDate,
           importBatchId: batch.id,
           createdAt: p.createdAt || new Date(),
         }
@@ -300,7 +300,11 @@ router.post('/xlsx', async (req, res) => {
     });
   } catch (err) {
     console.error('Import error:', err);
-    res.status(500).json({ error: 'Erro ao importar dados', details: err.message });
+    res.status(500).json({
+      error: 'Erro ao importar dados',
+      details: err.message,
+      hint: 'Revise o mapeamento de colunas e os campos obrigatórios antes de tentar novamente.',
+    });
   }
 });
 
