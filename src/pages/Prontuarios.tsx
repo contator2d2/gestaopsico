@@ -182,6 +182,18 @@ export default function Prontuarios() {
   }, [entityCards, typeFilter, searchTerm]);
 
   // Mutations
+  const createMutationApt = useMutation({
+    mutationFn: (data: Partial<Consulta>) => consultasApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patient-appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["patient-financial-detail"] });
+      toast.success("Sessão lançada com sucesso");
+      setEditAptDialog(false);
+      setEditingApt(null);
+    },
+    onError: (err: any) => toast.error(err.message || "Erro ao criar sessão"),
+  });
+
   const createMutation = useMutation({
     mutationFn: (data: Partial<RecordData>) => recordsApi.create(data),
     onSuccess: () => {
@@ -1012,6 +1024,97 @@ export default function Prontuarios() {
             submitLabel="Salvar Alterações"
             isEdit
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editAptDialog} onOpenChange={setEditAptDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingApt?.id ? "Editar Sessão" : "Lançar Sessão Passada"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Data</Label>
+                <Input 
+                  type="date" 
+                  value={editingApt?.date ? new Date(editingApt.date).toISOString().split("T")[0] : ""} 
+                  onChange={e => setEditingApt(prev => ({ ...prev, date: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Horário</Label>
+                <Input 
+                  type="time" 
+                  value={editingApt?.time || "08:00"} 
+                  onChange={e => setEditingApt(prev => ({ ...prev, time: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Valor</Label>
+                <Input 
+                  type="number" 
+                  value={editingApt?.value || 0} 
+                  onChange={e => setEditingApt(prev => ({ ...prev, value: Number(e.target.value) }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={editingApt?.status} onValueChange={v => setEditingApt(prev => ({ ...prev, status: v as any }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="scheduled">Agendada</SelectItem>
+                    <SelectItem value="completed">Realizada</SelectItem>
+                    <SelectItem value="cancelled">Cancelada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea 
+                value={editingApt?.notes || ""} 
+                onChange={e => setEditingApt(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Ex: Primeira consulta, paciente importado..."
+              />
+            </div>
+            {editingApt?.id && (
+              <div className="flex items-center gap-2 pt-2">
+                <Checkbox 
+                  id="attended" 
+                  checked={editingApt.attended} 
+                  onCheckedChange={checked => setEditingApt(prev => ({ ...prev, attended: !!checked }))} 
+                />
+                <Label htmlFor="attended" className="cursor-pointer">Paciente compareceu</Label>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditAptDialog(false); setEditingApt(null); }}>Cancelar</Button>
+            <Button 
+              className="gradient-primary border-0" 
+              onClick={() => {
+                if (editingApt?.id) {
+                  updateAptMutation.mutate({ id: editingApt.id, data: editingApt });
+                } else {
+                  // New past appointment
+                  const payload = { 
+                    ...editingApt, 
+                    patient_id: selectedEntity?.id,
+                    type: "individual",
+                    status: "completed", // Default for past
+                    attended: true
+                  };
+                  createMutationApt.mutate(payload as any);
+                }
+              }}
+              disabled={updateAptMutation.isPending || createMutationApt.isPending}
+            >
+              {editingApt?.id ? "Salvar Alterações" : "Lançar Sessão"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
