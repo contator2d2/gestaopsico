@@ -363,6 +363,100 @@ export default function ImportacaoDados() {
           </motion.div>
         )}
 
+        {/* ── STEP 1.5: Mapping ───────────────────────── */}
+        {step === "mapping" && (
+          <motion.div key="mapping" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              {patientsFile && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Users className="w-4 h-4" /> Mapeamento de Pacientes
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {[
+                      { label: "Nome", required: true },
+                      { label: "Email" },
+                      { label: "Telefone" },
+                      { label: "Observações" },
+                      { label: "Psicólogo" },
+                      { label: "Criado em" }
+                    ].map(field => (
+                      <div key={field.label} className="space-y-1.5">
+                        <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
+                          <span>{field.label} {field.required && <span className="text-destructive">*</span>}</span>
+                          {!patientMapping[field.label] && field.required && (
+                            <span className="text-[10px] text-destructive">Obrigatório</span>
+                          )}
+                        </label>
+                        <select
+                          className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          value={patientMapping[field.label] || ""}
+                          onChange={(e) => setPatientMapping(prev => ({ ...prev, [field.label]: e.target.value }))}
+                        >
+                          <option value="">-- Ignorar ou não encontrado --</option>
+                          {originalHeaders.patients.map(h => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {sessionsFile && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Calendar className="w-4 h-4" /> Mapeamento de Sessões
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {[
+                      { label: "Paciente", required: true },
+                      { label: "Data", required: true },
+                      { label: "Horário" },
+                      { label: "Duração" },
+                      { label: "Status" },
+                      { label: "Pagamento" },
+                      { label: "Valor Esperado" },
+                      { label: "Valor Pago" }
+                    ].map(field => (
+                      <div key={field.label} className="space-y-1.5">
+                        <label className="text-xs font-medium text-muted-foreground flex items-center justify-between">
+                          <span>{field.label} {field.required && <span className="text-destructive">*</span>}</span>
+                          {!sessionMapping[field.label] && field.required && (
+                            <span className="text-[10px] text-destructive">Obrigatório</span>
+                          )}
+                        </label>
+                        <select
+                          className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          value={sessionMapping[field.label] || ""}
+                          onChange={(e) => setSessionMapping(prev => ({ ...prev, [field.label]: e.target.value }))}
+                        >
+                          <option value="">-- Ignorar ou não encontrado --</option>
+                          {originalHeaders.sessions.map(h => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={() => setStep("upload")}>Voltar</Button>
+              <Button onClick={handlePreview} className="gap-2">
+                <Eye className="w-4 h-4" /> Próximo: Ver Resumo
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
         {/* ── STEP 2: Preview ─────────────────────────── */}
         {step === "preview" && preview && (
           <motion.div key="preview" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4">
