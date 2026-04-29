@@ -335,7 +335,7 @@ export default function ImportacaoDados() {
             <div className="grid md:grid-cols-2 gap-4">
               <FileDropZone
                 label="Planilha de Pacientes"
-                description="Colunas: Nome, Email, Telefone, Observações"
+                description="Colunas: Nome, CPF, Telefone, Endereço, etc."
                 icon={Users}
                 file={patientsFile}
                 count={patientsData.length}
