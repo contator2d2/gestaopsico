@@ -9,7 +9,7 @@ import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Pacientes from "./pages/Pacientes";
-import CRM from "./pages/CRM";
+
 import Agenda from "./pages/Agenda";
 import FinanceiroCompleto from "./pages/FinanceiroCompleto";
 import AiAssistant from "./pages/AiAssistant";
