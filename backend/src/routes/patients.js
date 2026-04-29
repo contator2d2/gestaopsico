@@ -236,7 +236,10 @@ router.get('/:id', async (req, res) => {
     }
     const patient = await prisma.patient.findFirst({
       where: whereClause,
-      include: { appointments: { orderBy: { date: 'desc' }, take: 10 } }
+      include: { 
+        appointments: { orderBy: { date: 'desc' }, take: 10 },
+        eventParticipations: { include: { event: true } }
+      }
     });
     if (!patient) return res.status(404).json({ error: 'Paciente não encontrado' });
     res.json(mapPatient(patient));
