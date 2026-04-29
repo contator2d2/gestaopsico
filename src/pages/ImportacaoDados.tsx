@@ -263,7 +263,10 @@ export default function ImportacaoDados() {
       toast.success("Importação concluída com sucesso!");
     } catch (err: any) {
       console.error("Erro na importação:", err);
-      toast.error(err.message || "Erro na importação. Verifique se o servidor está respondendo.");
+      const detail = err.details ? `\nDetalhe: ${err.details}` : "";
+      toast.error(`${err.message || "Erro na importação"}${detail}`, {
+        duration: 10000 // Show for longer so user can read
+      });
     } finally {
       setImporting(false);
     }
