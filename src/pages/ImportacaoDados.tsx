@@ -502,7 +502,7 @@ export default function ImportacaoDados() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={() => setStep("upload")}>Voltar</Button>
+              <Button variant="outline" onClick={() => setStep("mapping")}>Voltar</Button>
               <Button onClick={handleImport} disabled={importing} className="gap-2">
                 {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                 {importing ? "Importando..." : "Confirmar Importação"}
