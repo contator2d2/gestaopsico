@@ -87,7 +87,7 @@ interface PreviewData {
 /* ── Component ────────────────────────────────────────────── */
 export default function ImportacaoDados() {
   const qc = useQueryClient();
-  const [step, setStep] = useState<"upload" | "preview" | "done">("upload");
+  const [step, setStep] = useState<"upload" | "mapping" | "preview" | "done">("upload");
   const [patientsFile, setPatientsFile] = useState<File | null>(null);
   const [sessionsFile, setSessionsFile] = useState<File | null>(null);
   const [patientsData, setPatientsData] = useState<any[]>([]);
@@ -95,6 +95,14 @@ export default function ImportacaoDados() {
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<any>(null);
+  
+  // Mapping state
+  const [patientMapping, setPatientMapping] = useState<Record<string, string>>({});
+  const [sessionMapping, setSessionMapping] = useState<Record<string, string>>({});
+  const [originalHeaders, setOriginalHeaders] = useState<{patients: string[], sessions: string[]}>({
+    patients: [],
+    sessions: []
+  });
 
   const { data: batches = [], isLoading: loadingBatches } = useQuery({
     queryKey: ["import-batches"],
@@ -116,9 +124,6 @@ export default function ImportacaoDados() {
 
   /* File handlers - parse XLSX on client using SheetJS CDN */
   const handleFileSelect = useCallback(async (file: File, type: "patients" | "sessions") => {
-    if (type === "patients") setPatientsFile(file);
-    else setSessionsFile(file);
-
     try {
       // Dynamic import of SheetJS from CDN
       // @ts-ignore
@@ -142,25 +147,39 @@ export default function ImportacaoDados() {
         // @ts-ignore
         const rows = window.XLSX.utils.sheet_to_json(ws, { defval: "" });
         
-        // Validation: Check for required columns
+        if (rows.length === 0) {
+          toast.error("Arquivo vazio ou sem dados válidos");
+          return;
+        }
+
+        const headers = Object.keys(rows[0]);
+        
         if (type === "patients") {
-          const headers = Object.keys(rows[0] || {});
-          const required = ["Nome"];
-          const missing = required.filter(h => !headers.some(header => header.toLowerCase() === h.toLowerCase()));
-          if (missing.length) {
-            toast.error(`Planilha de pacientes inválida. Coluna obrigatória ausente: ${missing.join(", ")}`);
-            return;
-          }
+          setPatientsFile(file);
           setPatientsData(rows);
+          setOriginalHeaders(prev => ({ ...prev, patients: headers }));
+          
+          // Auto-mapping
+          const mapping: Record<string, string> = {};
+          const possibleFields = ["Nome", "Email", "Telefone", "Observações", "Psicólogo", "Criado em"];
+          headers.forEach(h => {
+            const field = possibleFields.find(f => f.toLowerCase() === h.toLowerCase());
+            if (field) mapping[field] = h;
+          });
+          setPatientMapping(mapping);
         } else {
-          const headers = Object.keys(rows[0] || {});
-          const required = ["Paciente", "Data"];
-          const missing = required.filter(h => !headers.some(header => header.toLowerCase() === h.toLowerCase()));
-          if (missing.length) {
-            toast.error(`Planilha de sessões inválida. Colunas obrigatórias ausentes: ${missing.join(", ")}`);
-            return;
-          }
+          setSessionsFile(file);
           setSessionsData(rows);
+          setOriginalHeaders(prev => ({ ...prev, sessions: headers }));
+          
+          // Auto-mapping
+          const mapping: Record<string, string> = {};
+          const possibleFields = ["Paciente", "Data", "Horário", "Duração", "Status", "Pagamento", "Valor Esperado", "Valor Pago"];
+          headers.forEach(h => {
+            const field = possibleFields.find(f => f.toLowerCase() === h.toLowerCase());
+            if (field) mapping[field] = h;
+          });
+          setSessionMapping(mapping);
         }
         
         toast.success(`${rows.length} registros carregados de ${file.name}`);
