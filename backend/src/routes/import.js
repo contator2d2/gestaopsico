@@ -86,8 +86,8 @@ router.post('/xlsx', async (req, res) => {
     const sessionRows = (rawSessions || []).map(r => {
       const value = parseFloat(r['Valor Esperado'] || r.expectedValue || 0) || 0;
       const paidValue = parseFloat(r['Valor Pago'] || r.paidValue || 0) || 0;
-      const statusRaw = (r['Status'] || r.status || '').toLowerCase();
-      const paymentRaw = (r['Pagamento'] || r.payment || '').toLowerCase();
+      const statusRaw = str(r['Status'] || r.status).toLowerCase();
+      const paymentRaw = str(r['Pagamento'] || r.payment).toLowerCase();
       let status = 'scheduled';
       if (statusRaw.includes('realizada')) status = 'completed';
       else if (statusRaw.includes('cancelada')) status = 'cancelled';
