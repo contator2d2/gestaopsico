@@ -170,7 +170,7 @@ router.post('/xlsx', async (req, res) => {
     }
 
     // Remove "couple-row" patients (e.g. "Guilherme casal Helaine") from individual import 
-    const individualPatients = patientRows.filter(p => {
+    const individualPatients = finalPatientRows.filter(p => {
       return !p.name.match(/^.+\s+casal\s+.+$/i);
     });
 
