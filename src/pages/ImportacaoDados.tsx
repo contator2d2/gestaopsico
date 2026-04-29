@@ -161,10 +161,28 @@ export default function ImportacaoDados() {
           
           // Auto-mapping
           const mapping: Record<string, string> = {};
-          const possibleFields = ["Nome", "Email", "Telefone", "Observações", "Psicólogo", "Criado em"];
+          const fieldSuggestions: Record<string, string[]> = {
+            "Nome": ["nome", "paciente", "nome do paciente", "name"],
+            "Data de Nascimento": ["data de nascimento", "nascimento", "data_nascimento", "birth date", "birthdate", "data de nasc"],
+            "CPF": ["cpf", "documento", "doc"],
+            "CEP": ["cep", "zip", "zipcode"],
+            "Endereço": ["endereço", "endereco", "address", "logradouro"],
+            "Telefone": ["telefone", "celular", "phone", "mobile", "tel"],
+            "E-mail": ["e-mail", "email", "mail"],
+            "Data de Pagamento": ["data de pagamento", "pagamento", "data_pagamento", "payment date"],
+            "Observações": ["observações", "observacao", "obs", "notes"],
+            "Psicólogo": ["psicólogo", "psicologo", "terapeuta", "professional"],
+            "Criado em": ["criado em", "data de cadastro", "created_at"]
+          };
+
           headers.forEach(h => {
-            const field = possibleFields.find(f => f.toLowerCase() === h.toLowerCase());
-            if (field) mapping[field] = h;
+            const normalizedH = h.toLowerCase().trim();
+            for (const [field, suggestions] of Object.entries(fieldSuggestions)) {
+              if (suggestions.includes(normalizedH)) {
+                mapping[field] = h;
+                break;
+              }
+            }
           });
           setPatientMapping(mapping);
         } else {
@@ -317,7 +335,7 @@ export default function ImportacaoDados() {
             <div className="grid md:grid-cols-2 gap-4">
               <FileDropZone
                 label="Planilha de Pacientes"
-                description="Colunas: Nome, Email, Telefone, Observações"
+                description="Colunas: Nome, CPF, Telefone, Endereço, etc."
                 icon={Users}
                 file={patientsFile}
                 count={patientsData.length}
@@ -351,7 +369,7 @@ export default function ImportacaoDados() {
                 <div className="grid md:grid-cols-2 gap-4 text-xs text-muted-foreground">
                   <div>
                     <p className="font-medium text-foreground mb-1">pacientes.xlsx</p>
-                    <p>Nome | Email | Telefone | Psicólogo | Observações | Criado em</p>
+                    <p>Nome | Data de nascimento | CPF | CEP | Endereço | Telefone | E-mail | Data de pagamento</p>
                   </div>
                   <div>
                     <p className="font-medium text-foreground mb-1">sessoes.xlsx</p>
@@ -377,8 +395,13 @@ export default function ImportacaoDados() {
                   <CardContent className="space-y-4">
                     {[
                       { label: "Nome", required: true },
-                      { label: "Email" },
+                      { label: "Data de Nascimento" },
+                      { label: "CPF" },
+                      { label: "CEP" },
+                      { label: "Endereço" },
                       { label: "Telefone" },
+                      { label: "E-mail" },
+                      { label: "Data de Pagamento" },
                       { label: "Observações" },
                       { label: "Psicólogo" },
                       { label: "Criado em" }
