@@ -9,10 +9,15 @@ router.use(authMiddleware);
 
 // ── helpers ──────────────────────────────────────────────────
 function parseDate(raw) {
-  if (!raw) return null;
+  if (raw === null || raw === undefined || raw === '') return null;
   if (raw instanceof Date) {
-    if (isNaN(raw.getTime())) return null;
-    return raw;
+    return isValidDate(raw) ? raw : null;
+  }
+  // Excel serial as number
+  if (typeof raw === 'number' && raw > 1 && raw < 80000) {
+    const d = new Date(1899, 11, 30);
+    d.setDate(d.getDate() + Math.floor(raw));
+    return isValidDate(d) ? d : null;
   }
   const s = String(raw).trim();
   if (!s) return null;
