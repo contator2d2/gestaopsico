@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
+import * as XLSX from "xlsx";
 import {
   Upload, FileSpreadsheet, Users, Calendar, DollarSign, Heart,
   CheckCircle, AlertTriangle, Trash2, RotateCcw, ArrowRight,
@@ -23,16 +24,17 @@ import { toast } from "sonner";
 import { apiRequest } from "@/lib/api";
 
 /* ── helpers ──────────────────────────────────────────────── */
-function readXlsx(file: File): Promise<Record<string, string>[]> {
+function readXlsx(file: File): Promise<any[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const data = e.target?.result as string;
-        // Simple CSV-like approach: parse the XLSX via a temporary worker
-        // We'll send the raw base64 to the backend for parsing
-        // For client-side, we parse as CSV or use SheetJS
-        resolve(parseSpreadsheet(data));
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const rows = XLSX.utils.sheet_to_json(worksheet, { raw: false });
+        resolve(rows);
       } catch (err) {
         reject(err);
       }
@@ -40,27 +42,6 @@ function readXlsx(file: File): Promise<Record<string, string>[]> {
     reader.onerror = reject;
     reader.readAsBinaryString(file);
   });
-}
-
-function parseSpreadsheet(data: string): Record<string, string>[] {
-  // Lightweight XLSX parser using the binary string
-  // We use a simplified approach: detect if it's a ZIP (XLSX) and extract sheet data
-  // For production, we'd use SheetJS. For now, we'll handle CSV fallback
-  // and send raw data to backend
-  try {
-    // Try CSV parsing first
-    const lines = data.split('\n').filter(l => l.trim());
-    if (lines.length < 2) return [];
-    const headers = lines[0].split(/[,;\t]/).map(h => h.trim().replace(/^"/, '').replace(/"$/, ''));
-    return lines.slice(1).map(line => {
-      const values = line.split(/[,;\t]/).map(v => v.trim().replace(/^"/, '').replace(/"$/, ''));
-      const row: Record<string, string> = {};
-      headers.forEach((h, i) => { row[h] = values[i] || ''; });
-      return row;
-    });
-  } catch {
-    return [];
-  }
 }
 
 /* ── API ──────────────────────────────────────────────────── */
@@ -282,7 +263,10 @@ export default function ImportacaoDados() {
       toast.success("Importação concluída com sucesso!");
     } catch (err: any) {
       console.error("Erro na importação:", err);
-      toast.error(err.message || "Erro na importação. Verifique se o servidor está respondendo.");
+      const detail = err.details ? `\nDetalhe: ${err.details}` : "";
+      toast.error(`${err.message || "Erro na importação"}${detail}`, {
+        duration: 10000 // Show for longer so user can read
+      });
     } finally {
       setImporting(false);
     }
