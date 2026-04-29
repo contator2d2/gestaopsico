@@ -449,7 +449,7 @@ export default function ImportacaoDados() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={() => setStep("upload")}>Voltar</Button>
+              <Button variant="outline" onClick={() => setStep("mapping")}>Voltar</Button>
               <Button onClick={handlePreview} className="gap-2">
                 <Eye className="w-4 h-4" /> Próximo: Ver Resumo
               </Button>
