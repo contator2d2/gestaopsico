@@ -93,9 +93,6 @@ const App = () => (
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/pacientes" element={<Pacientes />} />
-              <Route path="/crm" element={<CRM />} />
-              <Route path="/app/whatsapp/groups" element={<CRM />} />
-              <Route path="/app/whatsapp/channels" element={<CRM />} />
               <Route path="/agenda" element={<Agenda />} />
               <Route path="/financeiro" element={<FinanceiroCompleto />} />
               <Route path="/assistente-ia" element={<AiAssistant />} />
