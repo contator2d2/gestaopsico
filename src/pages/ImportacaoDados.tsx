@@ -395,8 +395,13 @@ export default function ImportacaoDados() {
                   <CardContent className="space-y-4">
                     {[
                       { label: "Nome", required: true },
-                      { label: "Email" },
+                      { label: "Data de Nascimento" },
+                      { label: "CPF" },
+                      { label: "CEP" },
+                      { label: "Endereço" },
                       { label: "Telefone" },
+                      { label: "E-mail" },
+                      { label: "Data de Pagamento" },
                       { label: "Observações" },
                       { label: "Psicólogo" },
                       { label: "Criado em" }
