@@ -161,10 +161,28 @@ export default function ImportacaoDados() {
           
           // Auto-mapping
           const mapping: Record<string, string> = {};
-          const possibleFields = ["Nome", "Email", "Telefone", "Observações", "Psicólogo", "Criado em"];
+          const fieldSuggestions: Record<string, string[]> = {
+            "Nome": ["nome", "paciente", "nome do paciente", "name"],
+            "Data de Nascimento": ["data de nascimento", "nascimento", "data_nascimento", "birth date", "birthdate", "data de nasc"],
+            "CPF": ["cpf", "documento", "doc"],
+            "CEP": ["cep", "zip", "zipcode"],
+            "Endereço": ["endereço", "endereco", "address", "logradouro"],
+            "Telefone": ["telefone", "celular", "phone", "mobile", "tel"],
+            "E-mail": ["e-mail", "email", "mail"],
+            "Data de Pagamento": ["data de pagamento", "pagamento", "data_pagamento", "payment date"],
+            "Observações": ["observações", "observacao", "obs", "notes"],
+            "Psicólogo": ["psicólogo", "psicologo", "terapeuta", "professional"],
+            "Criado em": ["criado em", "data de cadastro", "created_at"]
+          };
+
           headers.forEach(h => {
-            const field = possibleFields.find(f => f.toLowerCase() === h.toLowerCase());
-            if (field) mapping[field] = h;
+            const normalizedH = h.toLowerCase().trim();
+            for (const [field, suggestions] of Object.entries(fieldSuggestions)) {
+              if (suggestions.includes(normalizedH)) {
+                mapping[field] = h;
+                break;
+              }
+            }
           });
           setPatientMapping(mapping);
         } else {
