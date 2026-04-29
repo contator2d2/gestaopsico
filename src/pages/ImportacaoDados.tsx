@@ -291,10 +291,10 @@ export default function ImportacaoDados() {
 
       {/* ── Steps indicator ─────────────────────────────── */}
       <div className="flex items-center gap-2 text-sm">
-        {["Upload", "Preview", "Concluído"].map((label, i) => {
+        {["Upload", "Mapeamento", "Preview", "Concluído"].map((label, i) => {
           const stepIdx = i;
-          const current = step === ["upload", "preview", "done"][i];
-          const past = ["upload", "preview", "done"].indexOf(step) > i;
+          const current = step === ["upload", "mapping", "preview", "done"][i];
+          const past = ["upload", "mapping", "preview", "done"].indexOf(step) > i;
           return (
             <div key={label} className="flex items-center gap-2">
               {i > 0 && <ArrowRight className="w-4 h-4 text-muted-foreground" />}
