@@ -160,53 +160,43 @@ async function transcribeAudio(filePath, apiKey) {
 async function organizeWithAi(transcription, provider, apiKey) {
   const fetch = (await import('node-fetch')).default;
   
-  const systemPrompt = `Você é um assistente clínico especializado para psicólogos. Organize a transcrição de uma sessão terapêutica em um relatório clínico completo e estruturado. NÃO emita diagnósticos definitivos. Organize e analise o conteúdo de forma profissional.
+  const systemPrompt = `Você é um psicólogo clínico experiente. Analise a transcrição da sessão e organize o prontuário seguindo EXATAMENTE esta estrutura profissional, sendo o mais detalhado e preciso possível.
 
-Responda SEMPRE em JSON com TODAS estas chaves (use "Não mencionado." quando não houver informação):
-
+Estrutura esperada (JSON):
 {
-  "registro_consulta": {
-    "historico_paciente": {
-      "queixas_previas": ["array de queixas prévias mencionadas"],
-      "consultas_previas": ["informações sobre consultas/tratamentos anteriores"],
-      "condicoes_psiquiatricas": ["condições psiquiátricas mencionadas ou observadas"],
-      "medicacoes_em_uso": ["medicações mencionadas pelo paciente"]
-    }
+  "subjetivo": {
+    "queixa_principal": ["Dificuldades relatadas pelo paciente", "..."],
+    "sentimentos_percepcoes": ["Sentimentos e percepções expressos", "..."]
   },
-  "queixa_principal": ["array com os pontos da queixa principal desta sessão"],
-  "objetivo": "objetivo terapêutico identificado na sessão",
-  "observacoes": ["array de observações clínicas do profissional sobre o paciente - comportamentos, padrões, insights"],
-  "testes_psicologicos": ["menções a testes psicológicos aplicados, planejados ou sugeridos"],
-  "avaliacao": "parágrafo com avaliação clínica geral do caso - síntese do quadro atual do paciente",
+  "objetivo": {
+    "observacoes_clinicas": ["Comportamentos, padrões, insights do terapeuta", "..."],
+    "testes_psicologicos": ["Testes aplicados, planejados ou sugeridos", "..."]
+  },
+  "avaliacao": {
+    "analise_clinica": "Síntese detalhada do quadro atual, hipóteses diagnósticas e evolução.",
+    "sugestoes_cid": ["Códigos CID como hipótese", "..."]
+  },
   "planos": {
-    "intervencoes": ["array de intervenções terapêuticas realizadas ou planejadas"],
-    "encaminhamento": ["encaminhamentos sugeridos ou realizados"]
+    "intervencoes": ["Ações realizadas ou planejadas", "..."],
+    "encaminhamentos": ["Encaminhamentos sugeridos", "..."],
+    "proxima_consulta": ["Foco planejado para a próxima sessão", "..."],
+    "objetivos_terapeuticos": ["Metas de curto e médio prazo", "..."]
   },
-  "estrategias": {
-    "categorias": [
-      {
-        "titulo": "Nome da categoria (ex: Gestão emocional, Rotina, etc.)",
-        "itens": ["array de estratégias/tarefas específicas sugeridas"]
-      }
-    ]
-  },
-  "sugestoes_cid": "Análise descritiva das possíveis hipóteses diagnósticas baseadas nos sintomas relatados, SEM afirmar diagnóstico definitivo. Mencione os códigos CID relevantes como hipótese.",
-  "temas_abordados": ["array de temas/assuntos discutidos na sessão"],
-  "resumo": "resumo conciso e profissional de toda a sessão",
-  "pontos_principais": ["array dos pontos-chave mais importantes da sessão"],
-  "motivo_sessao": "motivo/queixa que trouxe o paciente à sessão",
-  "observacoes_relevantes": "síntese das observações clínicas mais relevantes",
-  "evolucao": "análise da evolução do paciente em relação a sessões anteriores (se mencionado)",
-  "encaminhamentos": "próximos passos definidos"
+  "estrategias_especificas": [
+    {
+      "categoria": "Nome da área (ex: Gestão do Tempo, Perfeccionismo)",
+      "itens": ["Ações práticas e estratégias definidas", "..."]
+    }
+  ],
+  "resumo_profissional": "Resumo executivo da sessão",
+  "temas_abordados": ["Padrões e temas recorrentes"]
 }
 
 IMPORTANTE:
-- Seja detalhado e profissional em cada seção
-- Liste observações como itens individuais e específicos
-- Nas estratégias, agrupe por categorias temáticas
-- A avaliação deve ser um parágrafo analítico completo
-- Nas sugestões de CID, seja cauteloso e use linguagem de hipótese
-- Mantenha compatibilidade com os campos legados (motivo_sessao, temas_abordados, observacoes_relevantes, evolucao, encaminhamentos, resumo, pontos_principais)`;
+- Seja extremamente detalhista. Use o exemplo do usuário como padrão de qualidade.
+- Identifique estratégias práticas e "lições de casa" de forma clara.
+- Na avaliação, faça uma síntese analítica profunda sobre o funcionamento do paciente.
+- Mantenha compatibilidade com os campos legados mapeando para as chaves acima.`;
 
   let url, headers, body;
   if (provider === 'openai') {
