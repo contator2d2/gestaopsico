@@ -18,6 +18,7 @@ const APP_VERSION = import.meta.env.VITE_APP_VERSION || "1.0.0";
 const mainNav: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Users, label: "Pacientes", path: "/pacientes", roles: ["admin", "professional", "psychologist", "superadmin"] },
+  { icon: Users, label: "CRM & Leads", path: "/crm", roles: ["admin", "professional", "psychologist", "superadmin"] },
   { icon: Heart, label: "Casais", path: "/casais", roles: ["admin", "professional", "psychologist", "superadmin"] },
   { icon: Calendar, label: "Agenda", path: "/agenda", roles: ["admin", "professional", "psychologist", "secretary", "secretary_financial", "superadmin"] },
   { icon: Library, label: "Recursos Terapêuticos", path: "/recursos", roles: ["admin", "professional", "psychologist", "superadmin"] },

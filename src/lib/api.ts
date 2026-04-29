@@ -164,6 +164,25 @@ export const importApi = {
     apiRequest<{ imported: number; total: number; balance: number | null; message: string }>("/import/ofx", { method: "POST", body: data }),
 };
 
+// WhatsApp
+export const whatsappApi = {
+  getGroups: () => apiRequest<any[]>("/whatsapp/groups"),
+  getChannels: () => apiRequest<any[]>("/whatsapp/channels"),
+  addGroupParticipants: (groupId: string, participants: string[]) =>
+    apiRequest<any>(`/whatsapp/groups/${groupId}/participants`, { method: "POST", body: { participants } }),
+};
+
+// Events
+export const eventsApi = {
+  list: () => apiRequest<any[]>("/events"),
+  get: (id: string) => apiRequest<any>(`/events/${id}`),
+  create: (data: any) => apiRequest<any>("/events", { method: "POST", body: data }),
+  update: (id: string, data: any) => apiRequest<any>(`/events/${id}`, { method: "PUT", body: data }),
+  delete: (id: string) => apiRequest(`/events/${id}`, { method: "DELETE" }),
+  addParticipation: (eventId: string, patientId: string, status?: string) =>
+    apiRequest<any>(`/events/${eventId}/participation`, { method: "POST", body: { patientId, status } }),
+};
+
 // Dashboard
 export const dashboardApi = {
   summary: () => apiRequest<DashboardSummary>("/dashboard/summary"),
@@ -203,6 +222,8 @@ export interface Patient {
   charge_enabled?: boolean;
   registration_token?: string;
   registration_completed?: boolean;
+  tags?: string[];
+  is_mentorado?: boolean;
   created_at: string;
   // Mapa Clínico fields
   emotional_patterns?: string;

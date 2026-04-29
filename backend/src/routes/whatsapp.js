@@ -338,4 +338,95 @@ router.post('/notifications/process', superadminGuard, async (req, res) => {
   }
 });
 
+
+// ========== GROUPS & CHANNELS ==========
+
+// GET /api/whatsapp/groups
+router.get('/groups', async (req, res) => {
+  try {
+    const config = await prisma.secretaryConfig.findUnique({ where: { userId: req.userId } });
+    if (!config?.instanceId) return res.status(400).json({ error: 'Nenhuma instância configurada' });
+    
+    const inst = await prisma.whatsappInstance.findUnique({ where: { id: config.instanceId } });
+    if (!inst) return res.status(404).json({ error: 'Instância não encontrada' });
+
+    const tokenSetting = await prisma.systemSetting.findUnique({ where: { key: 'wapi_token' } });
+    if (!tokenSetting?.value) return res.status(400).json({ error: 'Token W-API não configurado' });
+
+    const wapiRes = await fetch(`https://api.w-api.app/v1/instance/groups/${inst.instanceId}`, {
+      headers: { 'Authorization': `Bearer ${tokenSetting.value}` }
+    });
+    const data = await wapiRes.json();
+    
+    if (!wapiRes.ok) {
+      return res.status(wapiRes.status).json({ error: 'Erro na W-API ao buscar grupos', details: data });
+    }
+
+    res.json(data.groups || data || []);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar grupos', details: err.message });
+  }
+});
+
+// GET /api/whatsapp/channels
+router.get('/channels', async (req, res) => {
+  try {
+    const config = await prisma.secretaryConfig.findUnique({ where: { userId: req.userId } });
+    if (!config?.instanceId) return res.status(400).json({ error: 'Nenhuma instância configurada' });
+    
+    const inst = await prisma.whatsappInstance.findUnique({ where: { id: config.instanceId } });
+    if (!inst) return res.status(404).json({ error: 'Instância não encontrada' });
+
+    const tokenSetting = await prisma.systemSetting.findUnique({ where: { key: 'wapi_token' } });
+    if (!tokenSetting?.value) return res.status(400).json({ error: 'Token W-API não configurado' });
+
+    const wapiRes = await fetch(`https://api.w-api.app/v1/instance/channels/${inst.instanceId}`, {
+      headers: { 'Authorization': `Bearer ${tokenSetting.value}` }
+    });
+    const data = await wapiRes.json();
+    
+    if (!wapiRes.ok) {
+      return res.status(wapiRes.status).json({ error: 'Erro na W-API ao buscar canais', details: data });
+    }
+
+    res.json(data.channels || data || []);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar canais', details: err.message });
+  }
+});
+
+// POST /api/whatsapp/groups/:groupId/participants
+router.post('/groups/:groupId/participants', async (req, res) => {
+  try {
+    const { participants } = req.body; // Array of phone numbers
+    if (!Array.isArray(participants) || !participants.length) {
+      return res.status(400).json({ error: 'Lista de participantes é obrigatória' });
+    }
+
+    const config = await prisma.secretaryConfig.findUnique({ where: { userId: req.userId } });
+    if (!config?.instanceId) return res.status(400).json({ error: 'Nenhuma instância configurada' });
+    
+    const inst = await prisma.whatsappInstance.findUnique({ where: { id: config.instanceId } });
+    const tokenSetting = await prisma.systemSetting.findUnique({ where: { key: 'wapi_token' } });
+
+    const wapiRes = await fetch(`https://api.w-api.app/v1/instance/group-add-participant/${inst.instanceId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${tokenSetting.value}`
+      },
+      body: JSON.stringify({
+        groupId: req.params.groupId,
+        participants: participants.map(p => p.replace(/\D/g, '') + '@s.whatsapp.net')
+      })
+    });
+
+    const data = await wapiRes.json();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao adicionar participantes', details: err.message });
+  }
+});
+
 module.exports = router;
+
