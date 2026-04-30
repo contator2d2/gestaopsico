@@ -188,6 +188,59 @@ router.post('/:id/cancel', async (req, res) => {
   }
 });
 
+// Helper: create receivable for an attended session (skip if monthly or already exists)
+async function ensureReceivableForAppointment(apt, userId) {
+  if (!apt.patientId || !apt.patient) return null;
+  const patient = apt.patient;
+  // Monthly billing: don't generate per-session charge
+  if (patient.billingMode === 'monthly') return null;
+
+  // Check if a receivable already exists for this appointment (avoid duplicates)
+  const existing = await prisma.account.findFirst({
+    where: {
+      professionalId: userId,
+      patientId: apt.patientId,
+      type: 'receivable',
+      notes: { contains: `appointment_id:${apt.id}` },
+    },
+  });
+  if (existing) return existing;
+
+  const value = patient.sessionValue
+    ? Number(patient.sessionValue)
+    : (apt.value ? Number(apt.value) : 0);
+  if (!value || value <= 0) return null;
+
+  return prisma.account.create({
+    data: {
+      professionalId: userId,
+      type: 'receivable',
+      description: `Sessão - ${patient.name} - ${new Date(apt.date).toLocaleDateString('pt-BR')}`,
+      value,
+      dueDate: apt.date,
+      category: 'Consulta',
+      patientId: apt.patientId,
+      status: 'pending',
+      notes: `appointment_id:${apt.id}`,
+    },
+  });
+}
+
+// Internal: cancel any auto-receivable linked to this appointment
+async function removeReceivableForAppointment(appointmentId, userId) {
+  await prisma.account.deleteMany({
+    where: {
+      professionalId: userId,
+      type: 'receivable',
+      status: { not: 'paid' },
+      notes: { contains: `appointment_id:${appointmentId}` },
+    },
+  });
+}
+
+// Expose for cross-module use (telehealth auto-attend)
+router.ensureReceivableForAppointment = ensureReceivableForAppointment;
+
 // POST /api/consultas/:id/attend - mark attendance and auto-create receivable
 router.post('/:id/attend', async (req, res) => {
   try {
@@ -202,32 +255,163 @@ router.post('/:id/attend', async (req, res) => {
       data: { attended: true, status: 'completed' }
     });
 
-    // Auto-create receivable based on patient billing mode
-    if (apt.patientId && apt.patient) {
-      const patient = apt.patient;
-      const value = patient.billingMode === 'monthly'
-        ? null
-        : (patient.sessionValue ? Number(patient.sessionValue) : (apt.value ? Number(apt.value) : 0));
+    const account = await ensureReceivableForAppointment(apt, req.userId);
+    res.json({
+      message: account
+        ? 'Comparecimento registrado e cobrança gerada'
+        : 'Comparecimento registrado',
+      receivableCreated: !!account,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao registrar comparecimento', details: err.message });
+  }
+});
 
-      if (value && value > 0) {
-        await prisma.account.create({
-          data: {
+// POST /api/consultas/:id/miss - mark as no-show, optionally charging the session
+router.post('/:id/miss', async (req, res) => {
+  try {
+    const charge = req.body?.charge !== false; // default true
+    const apt = await prisma.appointment.findFirst({
+      where: { id: req.params.id, professionalId: req.userId },
+      include: { patient: true }
+    });
+    if (!apt) return res.status(404).json({ error: 'Consulta não encontrada' });
+
+    await prisma.appointment.update({
+      where: { id: req.params.id },
+      data: {
+        attended: false,
+        status: charge ? 'missed_charged' : 'missed_free',
+      },
+    });
+
+    let account = null;
+    if (charge) {
+      account = await ensureReceivableForAppointment(apt, req.userId);
+    } else {
+      await removeReceivableForAppointment(apt.id, req.userId);
+    }
+
+    res.json({
+      message: charge ? 'Falta registrada com cobrança' : 'Falta registrada sem cobrança',
+      receivableCreated: !!account,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao registrar falta', details: err.message });
+  }
+});
+
+// POST /api/consultas/:id/reset-status - back to scheduled / pending
+router.post('/:id/reset-status', async (req, res) => {
+  try {
+    const apt = await prisma.appointment.findFirst({
+      where: { id: req.params.id, professionalId: req.userId }
+    });
+    if (!apt) return res.status(404).json({ error: 'Consulta não encontrada' });
+    await prisma.appointment.update({
+      where: { id: apt.id },
+      data: { attended: false, status: 'scheduled' },
+    });
+    await removeReceivableForAppointment(apt.id, req.userId);
+    res.json({ message: 'Status revertido' });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao reverter status', details: err.message });
+  }
+});
+
+// GET /api/consultas/sessions-by-patient?month=YYYY-MM
+// Returns patients grouped with their sessions in the month + status
+router.get('/sessions-by-patient/list', async (req, res) => {
+  try {
+    const { month } = req.query;
+    const now = new Date();
+    const [y, m] = month
+      ? month.split('-').map(Number)
+      : [now.getFullYear(), now.getMonth() + 1];
+    const start = new Date(y, m - 1, 1);
+    const end = new Date(y, m, 0, 23, 59, 59);
+
+    const appointments = await prisma.appointment.findMany({
+      where: {
+        professionalId: req.userId,
+        date: { gte: start, lte: end },
+        type: { not: 'blocked' },
+      },
+      include: {
+        patient: { select: { id: true, name: true, sessionValue: true, billingMode: true } },
+        couple: { select: { id: true, name: true } },
+      },
+      orderBy: [{ date: 'asc' }, { time: 'asc' }],
+    });
+
+    // Map appointment -> linked receivable status (if any)
+    const apptIds = appointments.map(a => a.id);
+    const accounts = apptIds.length
+      ? await prisma.account.findMany({
+          where: {
             professionalId: req.userId,
             type: 'receivable',
-            description: `Sessão - ${patient.name}`,
-            value,
-            dueDate: apt.date,
-            category: 'Consulta',
-            patientId: apt.patientId,
-            status: 'pending'
-          }
-        });
+            OR: apptIds.map(id => ({ notes: { contains: `appointment_id:${id}` } })),
+          },
+          select: { id: true, status: true, notes: true, value: true, paidAt: true },
+        })
+      : [];
+
+    const acctByAppt = {};
+    accounts.forEach(a => {
+      const m = a.notes && a.notes.match(/appointment_id:([a-f0-9-]+)/);
+      if (m) acctByAppt[m[1]] = a;
+    });
+
+    // Group by patient/couple
+    const groups = {};
+    for (const apt of appointments) {
+      const key = apt.patientId || apt.coupleId || 'unknown';
+      if (!groups[key]) {
+        groups[key] = {
+          id: key,
+          name: apt.patient?.name || apt.couple?.name || 'Sem paciente',
+          billingMode: apt.patient?.billingMode || 'per_session',
+          sessionValue: apt.patient?.sessionValue ? Number(apt.patient.sessionValue) : null,
+          sessions: [],
+          totals: { attended: 0, missed: 0, pending: 0, totalValue: 0, paidValue: 0, dueValue: 0 },
+        };
+      }
+      const acct = acctByAppt[apt.id] || null;
+      const value = apt.value
+        ? Number(apt.value)
+        : (apt.patient?.sessionValue ? Number(apt.patient.sessionValue) : 0);
+      const session = {
+        id: apt.id,
+        date: apt.date,
+        time: apt.time,
+        duration: apt.duration,
+        type: apt.type,
+        mode: apt.mode,
+        status: apt.status, // scheduled, completed, missed_charged, missed_free, cancelled
+        attended: apt.attended,
+        value,
+        accountId: acct?.id || null,
+        accountStatus: acct?.status || null,
+        accountPaidAt: acct?.paidAt || null,
+      };
+      groups[key].sessions.push(session);
+      if (apt.attended) groups[key].totals.attended += 1;
+      else if (apt.status === 'missed_charged' || apt.status === 'missed_free') groups[key].totals.missed += 1;
+      else groups[key].totals.pending += 1;
+      if (acct) {
+        groups[key].totals.totalValue += Number(acct.value);
+        if (acct.status === 'paid') groups[key].totals.paidValue += Number(acct.value);
+        else groups[key].totals.dueValue += Number(acct.value);
       }
     }
 
-    res.json({ message: 'Comparecimento registrado e conta a receber gerada' });
+    res.json({
+      month: `${y}-${String(m).padStart(2, '0')}`,
+      patients: Object.values(groups).sort((a, b) => a.name.localeCompare(b.name)),
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Erro ao registrar comparecimento', details: err.message });
+    res.status(500).json({ error: 'Erro ao listar sessões por paciente', details: err.message });
   }
 });
 

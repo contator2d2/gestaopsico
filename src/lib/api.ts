@@ -102,10 +102,37 @@ export const consultasApi = {
   create: (data: Partial<Consulta>) => apiRequest<Consulta>("/consultas", { method: "POST", body: data }),
   update: (id: string, data: Partial<Consulta>) => apiRequest<Consulta>(`/consultas/${id}`, { method: "PUT", body: data }),
   cancel: (id: string) => apiRequest(`/consultas/${id}/cancel`, { method: "POST" }),
-  attend: (id: string) => apiRequest(`/consultas/${id}/attend`, { method: "POST" }),
-  miss: (id: string) => apiRequest(`/consultas/${id}/miss`, { method: "POST" }),
+  attend: (id: string) => apiRequest<{ message: string; receivableCreated: boolean }>(`/consultas/${id}/attend`, { method: "POST" }),
+  miss: (id: string, charge: boolean = true) =>
+    apiRequest<{ message: string; receivableCreated: boolean }>(`/consultas/${id}/miss`, { method: "POST", body: { charge } }),
+  resetStatus: (id: string) => apiRequest<{ message: string }>(`/consultas/${id}/reset-status`, { method: "POST" }),
   approve: (id: string) => apiRequest(`/consultas/${id}/approve`, { method: "POST" }),
   reject: (id: string) => apiRequest(`/consultas/${id}/reject`, { method: "POST" }),
+  sessionsByPatient: (month?: string) =>
+    apiRequest<{
+      month: string;
+      patients: Array<{
+        id: string;
+        name: string;
+        billingMode: string;
+        sessionValue: number | null;
+        sessions: Array<{
+          id: string;
+          date: string;
+          time: string;
+          duration: number;
+          type: string;
+          mode: string;
+          status: string;
+          attended: boolean;
+          value: number;
+          accountId: string | null;
+          accountStatus: string | null;
+          accountPaidAt: string | null;
+        }>;
+        totals: { attended: number; missed: number; pending: number; totalValue: number; paidValue: number; dueValue: number };
+      }>;
+    }>(`/consultas/sessions-by-patient/list${month ? `?month=${month}` : ""}`),
 };
 
 // Casais

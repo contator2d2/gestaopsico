@@ -21,6 +21,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { accountsApi, type Account, type ConsolidatedCharge } from "@/lib/portalApi";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import SessionsByPatient from "@/components/financeiro/SessionsByPatient";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -190,8 +192,21 @@ export default function Financeiro() {
         </Button>
       </div>
 
+      <Tabs defaultValue="sessoes" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="sessoes">Sessões do Mês</TabsTrigger>
+          <TabsTrigger value="cobrancas">Cobranças</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="sessoes" className="mt-6">
+          <SessionsByPatient />
+        </TabsContent>
+
+        <TabsContent value="cobrancas" className="mt-6 space-y-6">
+
       {/* Summary KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
         <StatCard
           icon={Wallet}
           label={`A Receber (${PERIODS.find(p => p.value === period)?.label || "mês"})`}
@@ -523,6 +538,8 @@ export default function Financeiro() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
