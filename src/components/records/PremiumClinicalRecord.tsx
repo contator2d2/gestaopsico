@@ -142,9 +142,7 @@ export default function PremiumClinicalRecord({ patientId, patientName }: Premiu
               <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-800 uppercase tracking-widest text-[10px] font-bold px-2 py-0.5">Premium</Badge>
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-primary" /> {stats.totalSessions} sessões totais</span>
-              <span className="flex items-center gap-1.5"><TrendingUp className="w-4 h-4 text-emerald-500" /> Evolução constante</span>
-              <span className="flex items-center gap-1.5"><ShieldAlert className="w-4 h-4 text-amber-500" /> Nível de Atenção: Médio</span>
+              <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-primary" /> {stats.totalSessions} {stats.totalSessions === 1 ? "sessão" : "sessões"} {stats.totalSessions === 0 ? "" : "totais"}</span>
             </div>
           </div>
         </div>
