@@ -368,6 +368,56 @@ router.post('/:id/start', async (req, res) => {
       data: { status: 'capturing', startedAt: new Date(), updatedAt: new Date() }
     });
     await auditLog(session.id, 'capture_started', null);
+
+    // Auto-mark linked appointment as attended (and generate receivable)
+    if (session.appointmentId) {
+      try {
+        const apt = await prisma.appointment.findFirst({
+          where: { id: session.appointmentId, professionalId: req.userId },
+          include: { patient: true },
+        });
+        if (apt && !apt.attended) {
+          await prisma.appointment.update({
+            where: { id: apt.id },
+            data: { attended: true, status: 'completed' },
+          });
+          // Generate receivable inline (avoid circular require)
+          if (apt.patientId && apt.patient && apt.patient.billingMode !== 'monthly') {
+            const existing = await prisma.account.findFirst({
+              where: {
+                professionalId: req.userId,
+                patientId: apt.patientId,
+                type: 'receivable',
+                notes: { contains: `appointment_id:${apt.id}` },
+              },
+            });
+            if (!existing) {
+              const value = apt.patient.sessionValue
+                ? Number(apt.patient.sessionValue)
+                : (apt.value ? Number(apt.value) : 0);
+              if (value > 0) {
+                await prisma.account.create({
+                  data: {
+                    professionalId: req.userId,
+                    type: 'receivable',
+                    description: `Sessão - ${apt.patient.name} - ${new Date(apt.date).toLocaleDateString('pt-BR')}`,
+                    value,
+                    dueDate: apt.date,
+                    category: 'Consulta',
+                    patientId: apt.patientId,
+                    status: 'pending',
+                    notes: `appointment_id:${apt.id}`,
+                  },
+                });
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Auto-attend failed:', e.message);
+      }
+    }
+
     res.json(session);
   } catch (err) {
     res.status(500).json({ error: 'Erro ao iniciar captura', details: err.message });
