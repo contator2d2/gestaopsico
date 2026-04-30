@@ -190,10 +190,10 @@ export default function PremiumClinicalRecord({ patientId, patientName }: Premiu
             {/* OVERVIEW */}
             <TabsContent value="overview" className="space-y-6 mt-0 focus-visible:outline-none">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <PremiumKpiCard title="Adesão" value={`${stats.adherenceRate}%`} trend="+2%" icon={Activity} color="indigo" />
-                <PremiumKpiCard title="Último Humor" value={moodData?.entries?.[0] ? MOOD_LABELS[moodData.entries[0].mood] : "Bom"} trend="Estável" icon={Smile} color="emerald" />
-                <PremiumKpiCard title="Faltas" value={stats.cancelledCount} trend="Atenção" icon={AlertTriangle} color="amber" />
-                <PremiumKpiCard title="Ganhos Clínicos" value="Elevados" trend="+12" icon={Flame} color="rose" />
+                <PremiumKpiCard title="Adesão" value={`${stats.adherenceRate}%`} trend={stats.totalSessions > 0 ? "Calculado" : "Sem dados"} icon={Activity} color="indigo" />
+                <PremiumKpiCard title="Último Humor" value={moodData?.entries?.[0] ? MOOD_LABELS[moodData.entries[0].mood] : "Sem registro"} trend={moodData?.entries?.[0] ? "Atualizado" : "Sem dados"} icon={Smile} color="emerald" />
+                <PremiumKpiCard title="Faltas" value={stats.cancelledCount} trend={stats.cancelledCount > 0 ? "Atenção" : "Sem dados"} icon={AlertTriangle} color="amber" />
+                <PremiumKpiCard title="Sessões" value={stats.totalSessions} trend={stats.totalSessions > 0 ? "Registradas" : "Sem dados"} icon={Flame} color="rose" />
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -203,37 +203,48 @@ export default function PremiumClinicalRecord({ patientId, patientName }: Premiu
                       <CardTitle className="text-lg font-display flex items-center gap-2">
                         <Brain className="w-5 h-5 text-primary" /> IA Leitura Clínica Atual
                       </CardTitle>
-                      <CardDescription>Resumo executivo consolidado das últimas 3 sessões</CardDescription>
+                      <CardDescription>Resumo executivo consolidado das últimas sessões</CardDescription>
                     </div>
-                    <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">Última atualização: Hoje</Badge>
+                    {stats.totalSessions > 0 && (
+                      <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">{stats.totalSessions} {stats.totalSessions === 1 ? "sessão" : "sessões"}</Badge>
+                    )}
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="p-4 rounded-2xl bg-muted/30 border border-border/40 text-sm leading-relaxed text-foreground/90">
-                      O paciente apresenta uma melhora significativa na <span className="font-semibold text-primary">auto-observação</span> em relação aos gatilhos de ansiedade no ambiente corporativo. Houve um padrão recorrente de <span className="italic">intelectualização</span> como defesa primária ao abordar conflitos familiares na última sessão. Os ganhos clínicos concentram-se na redução de crises de pânico (zero episódios no último mês).
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Padrões Ativos</p>
-                        <ul className="space-y-1.5">
-                          {clinicalMap.emotionalPatterns.slice(0, 2).map((p, i) => (
-                            <li key={i} className="text-xs flex items-center gap-2">
-                              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" /> {p}
-                            </li>
-                          ))}
-                        </ul>
+                    {stats.totalSessions === 0 ? (
+                      <div className="p-6 rounded-2xl bg-muted/20 border border-dashed border-border/60 text-sm text-muted-foreground text-center">
+                        <Brain className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                        <p className="font-medium text-foreground/80">Sem sessões registradas</p>
+                        <p className="text-xs mt-1">A leitura clínica da IA aparecerá aqui após o registro de sessões deste paciente.</p>
                       </div>
-                      <div className="space-y-2">
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Próximos Focos</p>
-                        <ul className="space-y-1.5">
-                          <li className="text-xs flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-primary" /> Manejo de feedback negativo
-                          </li>
-                          <li className="text-xs flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-primary" /> Luto simbólico da promoção
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="p-4 rounded-2xl bg-muted/20 border border-dashed border-border/60 text-sm text-muted-foreground text-center">
+                          <p>Use o botão <span className="font-semibold text-foreground">"Hipóteses Clínicas"</span> acima para gerar uma leitura clínica baseada nas sessões registradas.</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Padrões Ativos</p>
+                            <ul className="space-y-1.5">
+                              {clinicalMap.emotionalPatterns.slice(0, 2).map((p, i) => (
+                                <li key={i} className="text-xs flex items-center gap-2">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" /> {p}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Temas Dominantes</p>
+                            <ul className="space-y-1.5">
+                              {clinicalMap.dominantThemes.slice(0, 2).map((t, i) => (
+                                <li key={i} className="text-xs flex items-center gap-2">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-primary" /> {t}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
 
