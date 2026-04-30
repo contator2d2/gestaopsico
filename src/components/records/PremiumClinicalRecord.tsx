@@ -203,7 +203,7 @@ export default function PremiumClinicalRecord({ patientId, patientName }: Premiu
                       <CardTitle className="text-lg font-display flex items-center gap-2">
                         <Brain className="w-5 h-5 text-primary" /> IA Leitura Clínica Atual
                       </CardTitle>
-                      <CardDescription>Resumo executivo consolidado das últimas sessões</CardDescription>
+                      <CardDescription>{stats.totalSessions === 0 ? "Aguardando primeira sessão registrada" : "Resumo executivo consolidado das últimas sessões"}</CardDescription>
                     </div>
                     {stats.totalSessions > 0 && (
                       <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">{stats.totalSessions} {stats.totalSessions === 1 ? "sessão" : "sessões"}</Badge>
