@@ -10,8 +10,20 @@ router.use(authMiddleware);
 // GET /api/goals?patientId=...
 router.get('/', async (req, res) => {
   try {
-    const { patientId } = req.query;
+    let { patientId } = req.query;
     if (!patientId) return res.status(400).json({ error: 'patientId is required' });
+
+    // Se patientId for 'me', resolve para o patientId do usuário logado
+    if (patientId === 'me') {
+      const user = await prisma.user.findUnique({
+        where: { id: req.userId },
+        select: { patientId: true }
+      });
+      if (!user?.patientId) {
+        return res.status(403).json({ error: 'Este usuário não possui um perfil de paciente associado' });
+      }
+      patientId = user.patientId;
+    }
 
     const goals = await prisma.goal.findMany({
       where: { patientId },
