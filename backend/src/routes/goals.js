@@ -39,7 +39,20 @@ router.get('/', async (req, res) => {
 // POST /api/goals
 router.post('/', async (req, res) => {
   try {
-    const { patientId, title, description, status, progress, targetDate } = req.body;
+    let { patientId, title, description, status, progress, targetDate } = req.body;
+
+    // Se patientId for 'me', resolve para o patientId do usuário logado
+    if (patientId === 'me') {
+      const user = await prisma.user.findUnique({
+        where: { id: req.userId },
+        select: { patientId: true }
+      });
+      if (!user?.patientId) {
+        return res.status(403).json({ error: 'Este usuário não possui um perfil de paciente associado' });
+      }
+      patientId = user.patientId;
+    }
+
     const goal = await prisma.goal.create({
       data: {
         patientId,
