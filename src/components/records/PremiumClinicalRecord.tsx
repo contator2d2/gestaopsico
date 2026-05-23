@@ -401,11 +401,24 @@ export default function PremiumClinicalRecord({ patientId, patientName }: Premiu
                 </div>
                 
                 <div className="relative pl-8 space-y-8 before:absolute before:inset-y-0 before:left-[11px] before:w-0.5 before:bg-gradient-to-b before:from-primary before:via-indigo-500 before:to-muted">
-                  <TimelineEvent type="session" title="Sessão #42 — Exploração de Limites" date="Hoje, 14:00" description="Trabalhamos a diferenciação emocional entre as demandas do chefe e o senso de valor próprio." icon={FileText} />
-                  <TimelineEvent type="mood" title="Humor: Muito Bom" date="Ontem, 20:30" description="Relatou sensação de alívio após finalizar projeto importante." icon={Smile} />
-                  <TimelineEvent type="task" title="Tarefa Concluída: Diário" date="15 Abr, 09:00" description="Completou 7 dias consecutivos de registro." icon={CheckCircle2} />
-                  <TimelineEvent type="event" title="Evento Crítico: Discussão Familiar" date="12 Abr, 18:15" description="Paciente reportou via mensagem evento de estresse agudo com o irmão." icon={AlertTriangle} isCritical />
-                  <TimelineEvent type="test" title="Teste Aplicado: BDI-II" date="10 Abr, 11:00" description="Pontuação: 14 (Depressão leve). Queda de 5 pontos em relação ao mês anterior." icon={BarChart3} />
+                  {timeline?.records && timeline.records.length > 0 ? (
+                    timeline.records.map((record, i) => (
+                      <TimelineEvent 
+                        key={record.id}
+                        type="session" 
+                        title={`Sessão ${record.appointment?.date ? `— ${format(new Date(record.appointment.date), "dd/MM")}` : ""}`} 
+                        date={format(new Date(record.date), "dd 'de' MMMM", { locale: ptBR })} 
+                        description={record.complaint || "Registro de atendimento"}
+                        evolution={record.evolution}
+                        transcript={record.content}
+                        icon={FileText} 
+                      />
+                    ))
+                  ) : (
+                    <div className="py-10 text-center text-muted-foreground">
+                      Nenhum registro encontrado na timeline.
+                    </div>
+                  )}
                 </div>
               </div>
             </TabsContent>
@@ -541,7 +554,19 @@ function AiFeatureCard({ icon: Icon, title, description }: { icon: any; title: s
   );
 }
 
-function TimelineEvent({ type, title, date, description, icon: Icon, isCritical }: { type: string; title: string; date: string; description: string; icon: any; isCritical?: boolean }) {
+function TimelineEvent({ type, title, date, description, icon: Icon, isCritical, evolution, transcript }: { 
+  type: string; 
+  title: string; 
+  date: string; 
+  description: string; 
+  icon: any; 
+  isCritical?: boolean;
+  evolution?: string;
+  transcript?: string;
+}) {
+  const [showEvolution, setShowEvolution] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(false);
+  
   const typeColors = {
     session: "bg-indigo-500 text-white shadow-indigo-500/20",
     mood: "bg-emerald-500 text-white shadow-emerald-500/20",
@@ -560,14 +585,54 @@ function TimelineEvent({ type, title, date, description, icon: Icon, isCritical 
         <Icon className="w-4 h-4" />
       </div>
       <div className={cn(
-        "p-4 rounded-2xl border border-border/60 bg-card/50 backdrop-blur-sm group-hover:border-primary/40 group-hover:shadow-md transition-all",
+        "p-5 rounded-2xl border border-border/60 bg-card/50 backdrop-blur-sm group-hover:border-primary/40 group-hover:shadow-md transition-all",
         isCritical && "border-rose-200 bg-rose-50/20 dark:border-rose-900/20"
       )}>
-        <div className="flex items-center justify-between mb-1">
-          <h4 className="text-sm font-bold text-foreground">{title}</h4>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+          <h4 className="font-bold text-foreground leading-tight">{title}</h4>
           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{date}</span>
         </div>
-        <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+        <p className="text-sm text-muted-foreground leading-relaxed mb-4">{description}</p>
+        
+        {evolution && (
+          <div className="mt-4 space-y-3">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-xs h-7 gap-1.5 text-primary hover:text-primary/80 p-0"
+              onClick={() => setShowEvolution(!showEvolution)}
+            >
+              <TrendingUp className="w-3.5 h-3.5" /> 
+              {showEvolution ? "Ocultar Evolução IA" : "Ver Evolução Clínica IA"}
+            </Button>
+            
+            {showEvolution && (
+              <div className="p-4 rounded-xl bg-muted/30 border border-border/40 text-sm whitespace-pre-wrap font-sans text-foreground/90 leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200 prose prose-sm dark:prose-invert max-w-none">
+                {evolution}
+              </div>
+            )}
+          </div>
+        )}
+
+        {transcript && (
+          <div className="mt-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-xs h-7 gap-1.5 text-muted-foreground hover:text-foreground p-0"
+              onClick={() => setShowTranscript(!showTranscript)}
+            >
+              <MessageSquare className="w-3.5 h-3.5" /> 
+              {showTranscript ? "Ocultar Transcrição" : "Ver Transcrição da Sessão"}
+            </Button>
+            
+            {showTranscript && (
+              <div className="mt-2 p-4 rounded-xl bg-muted/20 border border-border/20 text-xs whitespace-pre-wrap text-muted-foreground font-mono leading-relaxed max-h-60 overflow-y-auto">
+                {transcript}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
