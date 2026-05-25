@@ -409,18 +409,40 @@ export default function PatientTimeline({ patients, selectedPatientId, onSelectP
                           </TabsContent>
 
                           <TabsContent value="transcription" className="animate-in fade-in-50 duration-200">
-                            <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
-                              <div className="flex items-center gap-2 mb-3">
-                                <MessageSquare className="w-4 h-4 text-primary" />
-                                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Descrição do Áudio (Transcrição)</h4>
+                            <div className="bg-muted/30 rounded-xl border border-border/50 overflow-hidden">
+                              <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/50">
+                                <div className="flex items-center gap-2">
+                                  <MessageSquare className="w-4 h-4 text-primary" />
+                                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Transcrição da Sessão</h4>
+                                </div>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-8 gap-2 hover:bg-primary/10 hover:text-primary transition-colors"
+                                  onClick={() => handleCopy(record.content || "", record.id)}
+                                >
+                                  {copiedId === record.id ? (
+                                    <><Check className="w-3.5 h-3.5 text-success" /> Copiado</>
+                                  ) : (
+                                    <><Copy className="w-3.5 h-3.5" /> Copiar</>
+                                  )}
+                                </Button>
                               </div>
-                              <div className="max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border">
-                                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                                  {record.content || "Nenhuma transcrição disponível para esta sessão."}
-                                </p>
+                              <div className="p-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border bg-white/50 dark:bg-slate-950/50">
+                                {record.content ? (
+                                  <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap font-sans text-justify">
+                                    {record.content}
+                                  </p>
+                                ) : (
+                                  <div className="py-8 text-center text-muted-foreground">
+                                    <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                    <p className="text-sm italic">Nenhuma transcrição disponível para esta sessão.</p>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </TabsContent>
+
                         </Tabs>
                       ) : (
                         <div className="space-y-2 mt-2">
