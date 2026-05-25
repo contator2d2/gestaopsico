@@ -644,99 +644,128 @@ export default function Teleatendimento() {
             {/* Completed - structured content and full transcription */}
             {recordingModalIsCompleted && (
               <div className="space-y-6">
-                {activeSession.structuredContent && (
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Brain className="h-4 w-4 text-primary" /> Registro Organizado pela IA
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <StructuredSessionContent data={activeSession.structuredContent} />
-                    </CardContent>
-                  </Card>
-                )}
+                <Tabs defaultValue="record" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="record" className="gap-2">
+                      <Brain className="h-4 w-4" /> Evolução Clínica
+                    </TabsTrigger>
+                    <TabsTrigger value="transcript" className="gap-2">
+                      <MessageSquare className="h-4 w-4" /> Transcrição
+                    </TabsTrigger>
+                  </TabsList>
 
-                {/* Manual Analysis with Specialist Prompt */}
-                {activeSession.transcription && (
-                  <Card className="border-primary/20 bg-primary/5">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 text-primary" /> Análise com Especialista
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex gap-2 items-end">
-                        <div className="flex-1 space-y-2">
-                          <Label className="text-xs">Selecione um Agente Especialista</Label>
-                          <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione o prompt..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="default">Padrão do Sistema</SelectItem>
-                              {agents.filter(a => a.isActive).map(agent => (
-                                <SelectItem key={agent.id} value={agent.id}>{agent.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                  <TabsContent value="record" className="space-y-4">
+                    {activeSession.structuredContent ? (
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Brain className="h-4 w-4 text-primary" /> Registro Organizado pela IA
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <StructuredSessionContent data={activeSession.structuredContent} />
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <Card className="p-8 text-center border-dashed">
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                          <AlertCircle className="h-8 w-8 opacity-20" />
+                          <p>Nenhum registro estruturado disponível.</p>
                         </div>
-                        <Button 
-                          onClick={async () => {
-                            const result = await analyzeTextMutation.mutateAsync({
-                              text: activeSession.transcription!,
-                              agentId: selectedAgentId === "default" ? undefined : selectedAgentId,
-                              type: "sessao"
-                            });
-                            setManualAnalysisResult(result.analysis);
-                          }}
-                          disabled={analyzeTextMutation.isPending}
-                        >
-                          {analyzeTextMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4 mr-2" />}
-                          Analisar
-                        </Button>
-                      </div>
+                      </Card>
+                    )}
 
-                      {manualAnalysisResult && (
-                        <div className="mt-4 p-4 bg-background rounded-lg border border-primary/10 prose prose-sm max-w-none">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-xs font-bold text-primary">RESULTADO DA ANÁLISE:</span>
-                            <Button variant="ghost" size="sm" onClick={() => setManualAnalysisResult(null)}><X className="h-3 w-3" /></Button>
+                    {/* Manual Analysis with Specialist Prompt - Moved here inside the record tab */}
+                    {activeSession.transcription && (
+                      <Card className="border-primary/20 bg-primary/5">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Sparkles className="h-4 w-4 text-primary" /> Análise Adicional
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="flex gap-2 items-end">
+                            <div className="flex-1 space-y-2">
+                              <Label className="text-xs">Especialista / Agente</Label>
+                              <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione o prompt..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="default">Padrão do Sistema</SelectItem>
+                                  {agents.filter(a => a.isActive).map(agent => (
+                                    <SelectItem key={agent.id} value={agent.id}>{agent.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <Button 
+                              onClick={async () => {
+                                const result = await analyzeTextMutation.mutateAsync({
+                                  text: activeSession.transcription!,
+                                  agentId: selectedAgentId === "default" ? undefined : selectedAgentId,
+                                  type: "sessao"
+                                });
+                                setManualAnalysisResult(result.analysis);
+                              }}
+                              disabled={analyzeTextMutation.isPending}
+                            >
+                              {analyzeTextMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4 mr-2" />}
+                              Analisar
+                            </Button>
                           </div>
-                          <div className="whitespace-pre-wrap text-sm">{manualAnalysisResult}</div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
 
-                {activeSession.transcription && (
-                  <Card>
-                    <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <MessageSquare className="h-4 w-4 text-primary" /> Transcrição Completa
-                      </CardTitle>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 gap-1.5"
-                        onClick={() => {
-                          navigator.clipboard.writeText(activeSession.transcription!);
-                          toast.success("Transcrição copiada!");
-                        }}
-                      >
-                        <Copy className="h-3.5 w-3.5" /> Copiar Tudo
-                      </Button>
-                    </CardHeader>
-                    <CardContent>
-                      <ScrollArea className="h-[300px] w-full rounded-md border p-4">
-                        <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                          {activeSession.transcription}
+                          {manualAnalysisResult && (
+                            <div className="mt-4 p-4 bg-background rounded-lg border border-primary/10 prose prose-sm max-w-none shadow-inner">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-xs font-bold text-primary flex items-center gap-1.5"><Sparkles className="w-3 h-3" /> RESULTADO DA ANÁLISE:</span>
+                                <Button variant="ghost" size="sm" className="h-6 w-6" onClick={() => setManualAnalysisResult(null)}><X className="h-3 w-3" /></Button>
+                              </div>
+                              <div className="whitespace-pre-wrap text-sm leading-relaxed">{manualAnalysisResult}</div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="transcript" className="space-y-4">
+                    {activeSession.transcription ? (
+                      <Card>
+                        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <MessageSquare className="h-4 w-4 text-primary" /> Transcrição Completa
+                          </CardTitle>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1.5"
+                            onClick={() => {
+                              navigator.clipboard.writeText(activeSession.transcription!);
+                              toast.success("Transcrição copiada!");
+                            }}
+                          >
+                            <Copy className="h-3.5 w-3.5" /> Copiar Tudo
+                          </Button>
+                        </CardHeader>
+                        <CardContent>
+                          <ScrollArea className="h-[400px] w-full rounded-md border p-4 bg-muted/30">
+                            <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed font-sans">
+                              {activeSession.transcription}
+                            </div>
+                          </ScrollArea>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <Card className="p-8 text-center border-dashed">
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                          <MessageSquare className="h-8 w-8 opacity-20" />
+                          <p>Nenhuma transcrição disponível.</p>
                         </div>
-                      </ScrollArea>
-                    </CardContent>
-                  </Card>
-                )}
+                      </Card>
+                    )}
+                  </TabsContent>
+                </Tabs>
 
                 <div className="flex justify-center gap-4 pt-4">
                   <Button variant="outline" className="gap-2" onClick={() => setShowRecordingModal(false)}>
