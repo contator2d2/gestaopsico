@@ -368,7 +368,7 @@ export default function Agenda() {
     setSelectedDate(date);
     setForm({
       ...emptyConsulta,
-      date: format(date, "yyyy-MM-dd"),
+      date: getLocalDateString(date),
       time: defaultTime,
       duration: 50,
       value: 0,
