@@ -103,29 +103,22 @@ function getProfessionalColor(professionalId: string, profMap: Map<string, numbe
 function getDateKey(value?: string | Date | null) {
   if (!value) return "";
   
-  // Se for uma string ISO do backend "YYYY-MM-DDTHH:mm:ss.sssZ"
   if (typeof value === "string") {
-    const isoMatch = value.match(/^(\d{4}-\d{2}-\d{2})/);
-    if (isoMatch) return isoMatch[1];
+    // Extract YYYY-MM-DD from any string that starts with it (ISO or simple date)
+    const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) return match[1];
   }
 
-  const parsed = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "";
+  const d = value instanceof Date ? value : new Date(value);
+  if (isNaN(d.getTime())) return "";
 
-  // Ao converter de Date para key, precisamos evitar o shift de fuso horário.
-  // Se a data vier do backend como 00:00:00 UTC, parsed.getDate() em fusos negativos (como Brasil)
-  // retornará o dia anterior.
-  
-  // Se for uma data "pura" (meia-noite UTC), usamos toISOString
-  if (parsed.getUTCHours() === 0 && parsed.getUTCMinutes() === 0) {
-    return parsed.toISOString().split("T")[0];
-  }
-
-  const year = parsed.getFullYear();
-  const month = String(parsed.getMonth() + 1).padStart(2, "0");
-  const day = String(parsed.getDate()).padStart(2, "0");
+  // Always use local components to avoid UTC shift
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
+
 
 function getAppointmentDisplayName(apt: any) {
   if (apt.type === "blocked") return apt.notes || "Bloqueado";
