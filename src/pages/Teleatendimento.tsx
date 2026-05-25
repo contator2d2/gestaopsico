@@ -888,7 +888,7 @@ export default function Teleatendimento() {
                 <span className="font-medium text-foreground">Sessão Travada ou Captura Externa</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Esta sessão parece estar com o status "Capturando" há algum tempo. Se você não está gravando ativamente agora, você deve encerrar a captura manualmente para liberar o processamento ou excluir a sessão.
+                Esta sessão parece estar com o status "Capturando" há algum tempo. Se você não está gravando ativamente agora, você deve encerrar a captura manualmente para liberar o processamento.
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button 
@@ -900,18 +900,21 @@ export default function Teleatendimento() {
                   {stopBackendCaptureMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <PhoneOff className="h-4 w-4" />}
                   Forçar Encerramento
                 </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    if (confirm("Tem certeza que deseja excluir esta sessão permanentemente?")) {
-                      deleteMutation.mutate(activeSession.id);
-                      setActiveSession(null);
-                    }
-                  }} 
-                  className="gap-2 text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="h-4 w-4" /> Excluir Sessão
-                </Button>
+                {/* A exclusão só é permitida para rascunhos ou após 24h com transcrição ok */}
+                {activeSession.status === "waiting" && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      if (confirm("Tem certeza que deseja excluir esta sessão permanentemente?")) {
+                        deleteMutation.mutate(activeSession.id);
+                        setActiveSession(null);
+                      }
+                    }} 
+                    className="gap-2 text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-4 w-4" /> Excluir Sessão
+                  </Button>
+                )}
                 <Button variant="ghost" onClick={() => setActiveSession(null)} className="gap-2">
                   <ArrowLeft className="h-4 w-4" /> Voltar
                 </Button>
