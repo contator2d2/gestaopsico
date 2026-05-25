@@ -35,10 +35,11 @@ import PatientTestsTab from "@/components/records/PatientTestsTab";
 import { LayoutDashboard, Target } from "lucide-react";
 import PatientGoals from "@/components/records/PatientGoals";
 import { useNavigate } from "react-router-dom";
+import { getLocalDateString } from "@/lib/utils";
 
 const EMPTY_FORM = {
   patientId: "", coupleId: "", appointmentId: "", type: "individual" as string,
-  date: new Date().toISOString().split("T")[0], modality: "in_person" as string,
+  date: getLocalDateString(), modality: "in_person" as string,
   content: "", complaint: "", keyPoints: "", clinicalObservations: "",
   interventions: "", evolution: "", nextSteps: "", privateNotes: "", aiContent: "",
 };
