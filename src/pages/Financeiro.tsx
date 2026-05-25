@@ -54,7 +54,7 @@ export default function Financeiro() {
   const [chargeDialogOpen, setChargeDialogOpen] = useState(false);
   const [entryDialogOpen, setEntryDialogOpen] = useState(false);
   const [entryForm, setEntryForm] = useState({
-    patientId: "", description: "", value: "", dueDate: new Date().toISOString().split("T")[0], type: "receivable" as "receivable" | "payable"
+    patientId: "", description: "", value: "", dueDate: new Date().toLocaleDateString('en-CA'), type: "receivable" as "receivable" | "payable"
   });
   const [chargeData, setChargeData] = useState<{ charges: ConsolidatedCharge[]; totalAmount: number } | null>(null);
 

@@ -29,7 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn, getLocalDateString, parseLocalDate } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import PatientSearchSelect from "@/components/PatientSearchSelect";
@@ -107,16 +107,20 @@ function getDateKey(value?: string | Date | null) {
     // Extract YYYY-MM-DD from any string that starts with it (ISO or simple date)
     const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
     if (match) return match[1];
+    
+    // Try to parse as date and then get local string
+    try {
+      const d = new Date(value);
+      if (!isNaN(d.getTime())) return getLocalDateString(d);
+    } catch {
+      return "";
+    }
   }
 
   const d = value instanceof Date ? value : new Date(value);
   if (isNaN(d.getTime())) return "";
 
-  // Always use local components to avoid UTC shift
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return getLocalDateString(d);
 }
 
 
@@ -148,7 +152,7 @@ export default function Agenda() {
 
   useEffect(() => {
     if (patientIdParam) {
-      setForm(prev => ({ ...prev, patient_id: patientIdParam, date: format(new Date(), "yyyy-MM-dd"), time: "08:00" }));
+      setForm(prev => ({ ...prev, patient_id: patientIdParam, date: getLocalDateString(), time: "08:00" }));
       setDialogOpen(true);
     }
   }, [patientIdParam]);
@@ -169,33 +173,33 @@ export default function Agenda() {
   const [editApt, setEditApt] = useState<Partial<Consulta> | null>(null);
   const [editMode, setEditMode] = useState(false);
 
-  const dateStr = format(selectedDate, "yyyy-MM-dd");
+  const dateStr = getLocalDateString(selectedDate);
 
   const dateRange = useMemo(() => {
     if (viewMode === "pipeline") {
       const today = new Date();
       if (pipelineFilter === "today") {
-        const d = format(today, "yyyy-MM-dd");
+        const d = getLocalDateString(today);
         return { startDate: d, endDate: d };
       } else if (pipelineFilter === "week") {
-        return { startDate: format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd"), endDate: format(endOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd") };
+        return { startDate: getLocalDateString(startOfWeek(today, { weekStartsOn: 1 })), endDate: getLocalDateString(endOfWeek(today, { weekStartsOn: 1 })) };
       } else if (pipelineFilter === "month") {
-        return { startDate: format(startOfMonth(today), "yyyy-MM-dd"), endDate: format(endOfMonth(today), "yyyy-MM-dd") };
+        return { startDate: getLocalDateString(startOfMonth(today)), endDate: getLocalDateString(endOfMonth(today)) };
       } else if (pipelineFilter === "custom" && pipelineCustomStart && pipelineCustomEnd) {
-        return { startDate: format(pipelineCustomStart, "yyyy-MM-dd"), endDate: format(pipelineCustomEnd, "yyyy-MM-dd") };
+        return { startDate: getLocalDateString(pipelineCustomStart), endDate: getLocalDateString(pipelineCustomEnd) };
       }
-      const d = format(today, "yyyy-MM-dd");
+      const d = getLocalDateString(today);
       return { startDate: d, endDate: d };
     } else if (viewMode === "day") {
       return { startDate: dateStr, endDate: dateStr };
     } else if (viewMode === "week") {
       const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
       const end = endOfWeek(selectedDate, { weekStartsOn: 1 });
-      return { startDate: format(start, "yyyy-MM-dd"), endDate: format(end, "yyyy-MM-dd") };
+      return { startDate: getLocalDateString(start), endDate: getLocalDateString(end) };
     } else {
       const start = startOfMonth(selectedDate);
       const end = endOfMonth(selectedDate);
-      return { startDate: format(start, "yyyy-MM-dd"), endDate: format(end, "yyyy-MM-dd") };
+      return { startDate: getLocalDateString(start), endDate: getLocalDateString(end) };
     }
   }, [selectedDate, viewMode, dateStr, pipelineFilter, pipelineCustomStart, pipelineCustomEnd]);
 
@@ -364,7 +368,7 @@ export default function Agenda() {
     setSelectedDate(date);
     setForm({
       ...emptyConsulta,
-      date: format(date, "yyyy-MM-dd"),
+      date: getLocalDateString(date),
       time: defaultTime,
       duration: 50,
       value: 0,
@@ -426,7 +430,7 @@ export default function Agenda() {
     } else if (blockMode === "period") {
       if (!blockStartDate || !blockEndDate) { toast({ title: "Selecione data inicial e final", variant: "destructive" }); return; }
       eachDayOfInterval({ start: blockStartDate, end: blockEndDate }).forEach(day => {
-        blockMutation.mutate({ ...baseData, date: format(day, "yyyy-MM-dd") });
+        blockMutation.mutate({ ...baseData, date: getLocalDateString(day) });
       });
     } else if (blockMode === "recurring") {
       if (!blockStartDate || !blockEndDate) { toast({ title: "Selecione o período de recorrência", variant: "destructive" }); return; }
@@ -462,7 +466,7 @@ export default function Agenda() {
     return map;
   }, [appointments]);
 
-  const getAptsForDate = (d: Date) => aptsByDate[format(d, "yyyy-MM-dd")] || [];
+  const getAptsForDate = (d: Date) => aptsByDate[getLocalDateString(d)] || [];
 
   const professionalsById = useMemo(() => {
     return new Map((Array.isArray(professionals) ? professionals : []).map((professional: any) => [professional.id, professional]));
@@ -1252,7 +1256,7 @@ function MonthView({ selectedDate, aptsByDate, onSelectDate, professionalColorMa
       </div>
       <div className="grid grid-cols-7">
         {days.map((day, i) => {
-          const key = format(day, "yyyy-MM-dd");
+          const key = getLocalDateString(day);
           const apts = aptsByDate[key] || [];
           const inMonth = isSameMonth(day, selectedDate);
           const today = isToday(day);
@@ -1384,7 +1388,7 @@ function WeekView({ selectedDate, aptsByDate, onSelectDate, onAttend, onCreateAt
                 {slotTime}
               </div>
               {displayDays.map((day, di) => {
-                const key = format(day, "yyyy-MM-dd");
+                const key = getLocalDateString(day);
                 const hourApts = (aptsByDate[key] || []).filter((a: any) => {
                   if (!a.time) return false;
                   const h = parseInt(a.time.split(":")[0], 10);
