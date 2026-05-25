@@ -339,7 +339,7 @@ export default function PatientTimeline({ patients, selectedPatientId, onSelectP
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-medium text-primary">
-                            {format(new Date(record.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                            {formatDate(record.date)}
                           </span>
                           {record.appointment?.time && (
                             <span className="text-[10px] text-muted-foreground flex items-center gap-1">
