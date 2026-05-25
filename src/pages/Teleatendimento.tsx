@@ -1030,6 +1030,14 @@ export default function Teleatendimento() {
                               <Trash2 className="h-3 w-3" /> Excluir
                             </Button>
                           )}
+                          {!canDelete && s.status !== "waiting" && (
+                            <span className="text-[10px] text-muted-foreground italic flex items-center gap-1">
+                              <Info className="h-3 w-3" />
+                              {s.processingStatus === "completed" 
+                                ? "Exclusão em 24h" 
+                                : "Retenção de áudio ativa"}
+                            </span>
+                          )}
                           {(s.status !== "waiting") && (
                             <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs ml-auto" onClick={(e) => {
                               e.stopPropagation();
