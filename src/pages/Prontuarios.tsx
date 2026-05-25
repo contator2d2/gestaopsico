@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -21,7 +22,7 @@ import {
   FileText, Plus, Search, Calendar, User, Edit, Eye, Sparkles, Brain,
   AlertTriangle, TrendingUp, Tag, BarChart3, Clock, ChevronRight, ArrowLeft,
   Users, Heart, Filter, CalendarDays, Trash2, RefreshCw, CheckCircle2, Smile,
-  DollarSign, ClipboardList
+  DollarSign, ClipboardList, Copy
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import PatientTimeline from "@/components/records/PatientTimeline";
@@ -952,8 +953,36 @@ export default function Prontuarios() {
               {selectedRecord.interventions && <RecordSection label="Intervenções Realizadas" content={selectedRecord.interventions} />}
               {selectedRecord.evolution && <RecordSection label="Evolução" content={selectedRecord.evolution} icon={<TrendingUp className="w-4 h-4" />} />}
               {selectedRecord.nextSteps && <RecordSection label="Próximos Passos" content={selectedRecord.nextSteps} icon={<ChevronRight className="w-4 h-4" />} />}
-              {selectedRecord.content && !selectedRecord.complaint && <RecordSection label="Conteúdo" content={selectedRecord.content} />}
-              {selectedRecord.content && selectedRecord.complaint && <RecordSection label="Anotações gerais" content={selectedRecord.content} />}
+              {selectedRecord.content && !selectedRecord.complaint && <RecordSection label="Conteúdo / Transcrição" content={selectedRecord.content} />}
+              {selectedRecord.content && selectedRecord.complaint && (
+                <Tabs defaultValue="evolution" className="w-full mt-4">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="evolution">Anotações</TabsTrigger>
+                    <TabsTrigger value="transcript">Transcrição</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="evolution" className="pt-2">
+                    <div className="bg-muted/50 rounded-lg p-3 text-sm whitespace-pre-wrap">
+                      {selectedRecord.content}
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="transcript" className="pt-2">
+                    <div className="flex justify-between items-center mb-2">
+                      <Label className="text-xs text-muted-foreground">Transcrição completa da sessão</Label>
+                      <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => {
+                        navigator.clipboard.writeText(selectedRecord.content || "");
+                        toast.success("Transcrição copiada!");
+                      }}>
+                        <Copy className="h-3 w-3" /> Copiar
+                      </Button>
+                    </div>
+                    <ScrollArea className="h-[300px] w-full rounded-md border p-4 bg-muted/30">
+                      <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed font-sans">
+                        {selectedRecord.content}
+                      </div>
+                    </ScrollArea>
+                  </TabsContent>
+                </Tabs>
+              )}
 
               {selectedRecord.themes && selectedRecord.themes.length > 0 && (
                 <div>
