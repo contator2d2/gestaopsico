@@ -1066,8 +1066,8 @@ export default function Teleatendimento() {
               <p>Ao iniciar uma sessão de teleatendimento com captura de áudio:</p>
               <ul className="list-disc pl-5 space-y-2">
                 <li>O áudio da sessão será capturado <strong>apenas para gerar a transcrição</strong> e organizar o prontuário.</li>
-                <li>O arquivo de áudio será armazenado <strong>apenas temporariamente</strong> em área privada e segura.</li>
-                <li>Após a transcrição, o áudio será <strong>excluído automaticamente</strong> do sistema.</li>
+                <li>O áudio será mantido por pelo menos <strong>24 horas</strong> após a conclusão da transcrição para sua conferência.</li>
+                <li>Sessões sem transcrição concluída serão mantidas no sistema para garantir a segurança dos dados.</li>
                 <li>Apenas o texto organizado permanecerá no prontuário do paciente.</li>
                 <li><strong>Nenhum acesso humano</strong> ao arquivo de áudio bruto é permitido.</li>
               </ul>
