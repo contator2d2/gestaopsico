@@ -179,27 +179,27 @@ export default function Agenda() {
     if (viewMode === "pipeline") {
       const today = new Date();
       if (pipelineFilter === "today") {
-        const d = format(today, "yyyy-MM-dd");
+        const d = getLocalDateString(today);
         return { startDate: d, endDate: d };
       } else if (pipelineFilter === "week") {
-        return { startDate: format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd"), endDate: format(endOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd") };
+        return { startDate: getLocalDateString(startOfWeek(today, { weekStartsOn: 1 })), endDate: getLocalDateString(endOfWeek(today, { weekStartsOn: 1 })) };
       } else if (pipelineFilter === "month") {
-        return { startDate: format(startOfMonth(today), "yyyy-MM-dd"), endDate: format(endOfMonth(today), "yyyy-MM-dd") };
+        return { startDate: getLocalDateString(startOfMonth(today)), endDate: getLocalDateString(endOfMonth(today)) };
       } else if (pipelineFilter === "custom" && pipelineCustomStart && pipelineCustomEnd) {
-        return { startDate: format(pipelineCustomStart, "yyyy-MM-dd"), endDate: format(pipelineCustomEnd, "yyyy-MM-dd") };
+        return { startDate: getLocalDateString(pipelineCustomStart), endDate: getLocalDateString(pipelineCustomEnd) };
       }
-      const d = format(today, "yyyy-MM-dd");
+      const d = getLocalDateString(today);
       return { startDate: d, endDate: d };
     } else if (viewMode === "day") {
       return { startDate: dateStr, endDate: dateStr };
     } else if (viewMode === "week") {
       const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
       const end = endOfWeek(selectedDate, { weekStartsOn: 1 });
-      return { startDate: format(start, "yyyy-MM-dd"), endDate: format(end, "yyyy-MM-dd") };
+      return { startDate: getLocalDateString(start), endDate: getLocalDateString(end) };
     } else {
       const start = startOfMonth(selectedDate);
       const end = endOfMonth(selectedDate);
-      return { startDate: format(start, "yyyy-MM-dd"), endDate: format(end, "yyyy-MM-dd") };
+      return { startDate: getLocalDateString(start), endDate: getLocalDateString(end) };
     }
   }, [selectedDate, viewMode, dateStr, pipelineFilter, pipelineCustomStart, pipelineCustomEnd]);
 
