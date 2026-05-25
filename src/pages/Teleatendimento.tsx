@@ -978,7 +978,9 @@ export default function Teleatendimento() {
                 const stat = STATUS_MAP[s.status] || STATUS_MAP.waiting;
                 const proc = PROCESSING_MAP[s.processingStatus] || PROCESSING_MAP.none;
                 const canEdit = s.status === "waiting";
-                const canDelete = s.status === "waiting" || s.status === "completed" || s.processingStatus === "error";
+                const isOlderThan24h = new Date().getTime() - new Date(s.createdAt).getTime() > 24 * 60 * 60 * 1000;
+                const transcriptionOk = s.processingStatus === "completed";
+                const canDelete = s.status === "waiting" || (transcriptionOk && isOlderThan24h);
                 const canProcess = s.status === "uploaded" && (s.processingStatus === "uploaded" || s.processingStatus === "error");
                 return (
                   <motion.div key={s.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
