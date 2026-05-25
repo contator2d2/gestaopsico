@@ -1388,7 +1388,7 @@ function WeekView({ selectedDate, aptsByDate, onSelectDate, onAttend, onCreateAt
                 {slotTime}
               </div>
               {displayDays.map((day, di) => {
-                const key = format(day, "yyyy-MM-dd");
+                const key = getLocalDateString(day);
                 const hourApts = (aptsByDate[key] || []).filter((a: any) => {
                   if (!a.time) return false;
                   const h = parseInt(a.time.split(":")[0], 10);
