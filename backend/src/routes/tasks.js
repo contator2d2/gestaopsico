@@ -13,12 +13,15 @@ router.get('/', async (req, res) => {
     let { patientId } = req.query;
     if (!patientId) return res.status(400).json({ error: 'patientId is required' });
 
+    console.log(`[Tasks] Fetching for patientId: ${patientId}`);
+
     // Se patientId for 'me', resolve para o patientId do usuário logado
     if (patientId === 'me') {
       const user = await prisma.user.findUnique({
         where: { id: req.userId },
         select: { patientId: true }
       });
+      console.log(`[Tasks] Resolved 'me' to user patientId: ${user?.patientId}`);
       if (!user?.patientId) {
         return res.status(403).json({ error: 'Este usuário não possui um perfil de paciente associado' });
       }
@@ -26,15 +29,20 @@ router.get('/', async (req, res) => {
     }
 
     const tasks = await prisma.task.findMany({
-      where: { patientId },
+      where: { patientId: patientId },
       orderBy: { createdAt: 'desc' }
     });
     res.json(tasks);
   } catch (err) {
     console.error('Error fetching tasks:', err);
-    res.status(500).json({ error: 'Erro ao listar tarefas', details: err.message });
+    res.status(500).json({ 
+      error: 'Erro ao listar tarefas', 
+      details: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined 
+    });
   }
 });
+
 
 // POST /api/tasks
 router.post('/', async (req, res) => {
