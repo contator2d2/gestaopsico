@@ -26,8 +26,34 @@ export default function PatientTimeline({ patients, selectedPatientId, onSelectP
   const [analysis, setAnalysis] = useState<PatientAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [selectedForBilling, setSelectedForBilling] = useState<string[]>([]);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const formatDate = (dateStr: string) => {
+    try {
+      if (!dateStr) return "";
+      if (dateStr.includes('T')) {
+        return format(parseISO(dateStr), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+      }
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const [y, m, d] = parts.map(Number);
+        return format(new Date(y, m - 1, d), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+      }
+      return format(new Date(dateStr), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    toast.success("Transcrição copiada!");
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const { data: timeline, isLoading } = useQuery({
+
     queryKey: ["patient-timeline", selectedPatientId],
     queryFn: () => recordsApi.patientTimeline(selectedPatientId),
     enabled: !!selectedPatientId,
