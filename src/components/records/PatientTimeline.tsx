@@ -368,7 +368,7 @@ export default function PatientTimeline({ patients, selectedPatientId, onSelectP
                         </div>
                       )}
 
-                      {record.modality === 'telehealth' || record.aiContent ? (
+                      {record.modality === 'telehealth' || record.aiContent || record.content ? (
                         <Tabs defaultValue="evolution" className="w-full mt-3">
                           <TabsList className="grid w-full grid-cols-2 mb-4 h-9 bg-muted/50 p-1">
                             <TabsTrigger value="evolution" className="text-xs gap-1.5 h-7">
