@@ -102,13 +102,24 @@ function getProfessionalColor(professionalId: string, profMap: Map<string, numbe
 
 function getDateKey(value?: string | Date | null) {
   if (!value) return "";
+  
+  // Se for uma string ISO do backend "YYYY-MM-DDTHH:mm:ss.sssZ"
   if (typeof value === "string") {
-    const match = value.match(/^\d{4}-\d{2}-\d{2}/);
-    if (match) return match[0];
+    const isoMatch = value.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (isoMatch) return isoMatch[1];
   }
 
   const parsed = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(parsed.getTime())) return "";
+
+  // Ao converter de Date para key, precisamos evitar o shift de fuso horário.
+  // Se a data vier do backend como 00:00:00 UTC, parsed.getDate() em fusos negativos (como Brasil)
+  // retornará o dia anterior.
+  
+  // Se for uma data "pura" (meia-noite UTC), usamos toISOString
+  if (parsed.getUTCHours() === 0 && parsed.getUTCMinutes() === 0) {
+    return parsed.toISOString().split("T")[0];
+  }
 
   const year = parsed.getFullYear();
   const month = String(parsed.getMonth() + 1).padStart(2, "0");
