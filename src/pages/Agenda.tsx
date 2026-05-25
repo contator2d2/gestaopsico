@@ -152,7 +152,7 @@ export default function Agenda() {
 
   useEffect(() => {
     if (patientIdParam) {
-      setForm(prev => ({ ...prev, patient_id: patientIdParam, date: format(new Date(), "yyyy-MM-dd"), time: "08:00" }));
+      setForm(prev => ({ ...prev, patient_id: patientIdParam, date: getLocalDateString(), time: "08:00" }));
       setDialogOpen(true);
     }
   }, [patientIdParam]);
