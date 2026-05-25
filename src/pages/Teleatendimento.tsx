@@ -17,12 +17,14 @@ import {
   Mic, MicOff, Phone, PhoneOff, Clock, Shield, CheckCircle, AlertCircle,
   Upload, FileText, Brain, Trash2, Video, ExternalLink, Loader2, RefreshCw,
   Eye, Plus, ArrowLeft, Headphones, Monitor, Volume2, Info, Pause, Play,
-  Paperclip, X, File, Image as ImageIcon, Copy, MessageSquare, Sparkles, Settings2
+  Paperclip, X, File, Image as ImageIcon, Copy, MessageSquare, Sparkles, Settings2,
+  FileSearch
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StructuredSessionContent from "@/components/telehealth/StructuredSessionContent";
 import { useAiAgents, useAnalyzeText } from "@/hooks/useAi";
 
