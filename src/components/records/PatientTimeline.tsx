@@ -8,11 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Brain, TrendingUp, AlertTriangle, Tag, Calendar, FileText, Sparkles, User, Clock, Video, CheckCircle2, XCircle, MessageSquare } from "lucide-react";
+import { Brain, TrendingUp, AlertTriangle, Tag, Calendar, FileText, Sparkles, User, Clock, Video, CheckCircle2, XCircle, MessageSquare, Copy, Check } from "lucide-react";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 import StructuredSessionContent from "../telehealth/StructuredSessionContent";
+
+
 
 interface Props {
   patients: any[];
@@ -25,8 +28,34 @@ export default function PatientTimeline({ patients, selectedPatientId, onSelectP
   const [analysis, setAnalysis] = useState<PatientAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [selectedForBilling, setSelectedForBilling] = useState<string[]>([]);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const formatDate = (dateStr: string) => {
+    try {
+      if (!dateStr) return "";
+      if (dateStr.includes('T')) {
+        return format(parseISO(dateStr), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+      }
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const [y, m, d] = parts.map(Number);
+        return format(new Date(y, m - 1, d), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+      }
+      return format(new Date(dateStr), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    toast.success("Transcrição copiada!");
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const { data: timeline, isLoading } = useQuery({
+
     queryKey: ["patient-timeline", selectedPatientId],
     queryFn: () => recordsApi.patientTimeline(selectedPatientId),
     enabled: !!selectedPatientId,
@@ -312,7 +341,7 @@ export default function PatientTimeline({ patients, selectedPatientId, onSelectP
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-medium text-primary">
-                            {format(new Date(record.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                            {formatDate(record.date)}
                           </span>
                           {record.appointment?.time && (
                             <span className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -341,7 +370,7 @@ export default function PatientTimeline({ patients, selectedPatientId, onSelectP
                         </div>
                       )}
 
-                      {record.modality === 'telehealth' || record.aiContent ? (
+                      {record.modality === 'telehealth' || record.aiContent || record.content ? (
                         <Tabs defaultValue="evolution" className="w-full mt-3">
                           <TabsList className="grid w-full grid-cols-2 mb-4 h-9 bg-muted/50 p-1">
                             <TabsTrigger value="evolution" className="text-xs gap-1.5 h-7">
@@ -382,36 +411,82 @@ export default function PatientTimeline({ patients, selectedPatientId, onSelectP
                           </TabsContent>
 
                           <TabsContent value="transcription" className="animate-in fade-in-50 duration-200">
-                            <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
-                              <div className="flex items-center gap-2 mb-3">
-                                <MessageSquare className="w-4 h-4 text-primary" />
-                                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Descrição do Áudio (Transcrição)</h4>
+                            <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
+                              <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 bg-primary/10 rounded-lg">
+                                    <MessageSquare className="w-4 h-4 text-primary" />
+                                  </div>
+                                  <div>
+                                    <h4 className="text-sm font-bold text-foreground">Transcrição Integral</h4>
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-tight">Registro textual do áudio da sessão</p>
+                                  </div>
+                                </div>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className={cn(
+                                    "h-9 gap-2 transition-all",
+                                    copiedId === record.id ? "bg-success/10 text-success border-success/20" : "hover:bg-primary/5 hover:text-primary"
+                                  )}
+                                  onClick={() => handleCopy(record.content || "", record.id)}
+                                >
+                                  {copiedId === record.id ? (
+                                    <><Check className="w-3.5 h-3.5" /> Copiado</>
+                                  ) : (
+                                    <><Copy className="w-3.5 h-3.5" /> Copiar Texto</>
+                                  )}
+                                </Button>
                               </div>
-                              <div className="max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border">
-                                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                                  {record.content || "Nenhuma transcrição disponível para esta sessão."}
-                                </p>
+                              <div className="p-8 bg-white dark:bg-slate-950 min-h-[200px] max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-border">
+                                {record.content ? (
+                                  <div className="max-w-prose mx-auto">
+                                    <p className="text-base text-foreground/80 leading-relaxed whitespace-pre-wrap font-sans text-justify selection:bg-primary/20">
+                                      {record.content}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="py-12 text-center text-muted-foreground">
+                                    <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                                    <p className="text-sm italic font-medium">Nenhuma transcrição disponível para esta sessão.</p>
+                                    <p className="text-xs mt-1 opacity-60">O áudio pode não ter sido processado ou a sessão foi presencial.</p>
+                                  </div>
+                                )}
                               </div>
+                              {record.content && (
+                                <div className="px-6 py-3 border-t border-border bg-muted/10 flex justify-end">
+                                  <p className="text-[10px] text-muted-foreground italic">Este conteúdo foi gerado automaticamente via processamento de áudio.</p>
+                                </div>
+                              )}
                             </div>
                           </TabsContent>
+
+
                         </Tabs>
                       ) : (
-                        <div className="space-y-2 mt-2">
-                          {record.complaint && <p className="text-sm font-semibold text-foreground">{record.complaint}</p>}
-                          <p className="text-sm text-muted-foreground leading-relaxed">
-                            {record.keyPoints || record.content || "Nenhum detalhe registrado."}
-                          </p>
+                        <div className="space-y-3 mt-3 p-4 bg-muted/20 rounded-xl border border-border/40">
+                          {record.complaint && (
+                            <div>
+                              <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-0.5">Queixa / Motivo</p>
+                              <p className="text-sm font-semibold text-foreground">{record.complaint}</p>
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-0.5">Pontos Chave</p>
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                              {record.keyPoints || "Nenhum detalhe registrado."}
+                            </p>
+                          </div>
                           
                           {record.evolution && (
-                            <div className="mt-2 pt-2 border-t border-border/50">
-                              <p className="text-[11px] font-medium text-primary uppercase flex items-center gap-1">
-                                <TrendingUp className="w-3 h-3" /> Evolução:
-                              </p>
-                              <p className="text-xs text-muted-foreground italic">{record.evolution}</p>
+                            <div className="pt-2 border-t border-border/50">
+                              <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-0.5">Análise Clínica</p>
+                              <p className="text-xs text-muted-foreground italic leading-relaxed">{record.evolution}</p>
                             </div>
                           )}
                         </div>
                       )}
+
 
                       {record.themes && record.themes.length > 0 && (
                         <div className="flex gap-1 mt-2.5 flex-wrap">
