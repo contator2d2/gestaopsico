@@ -888,7 +888,7 @@ export default function Teleatendimento() {
                 <span className="font-medium text-foreground">Sessão Travada ou Captura Externa</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Esta sessão parece estar com o status "Capturando" há algum tempo. Se você não está gravando ativamente agora, você deve encerrar a captura manualmente para liberar o processamento ou excluir a sessão.
+                Esta sessão parece estar com o status "Capturando" há algum tempo. Se você não está gravando ativamente agora, você deve encerrar a captura manualmente para liberar o processamento.
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button 
@@ -899,18 +899,6 @@ export default function Teleatendimento() {
                 >
                   {stopBackendCaptureMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <PhoneOff className="h-4 w-4" />}
                   Forçar Encerramento
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    if (confirm("Tem certeza que deseja excluir esta sessão permanentemente?")) {
-                      deleteMutation.mutate(activeSession.id);
-                      setActiveSession(null);
-                    }
-                  }} 
-                  className="gap-2 text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="h-4 w-4" /> Excluir Sessão
                 </Button>
                 <Button variant="ghost" onClick={() => setActiveSession(null)} className="gap-2">
                   <ArrowLeft className="h-4 w-4" /> Voltar
@@ -978,7 +966,9 @@ export default function Teleatendimento() {
                 const stat = STATUS_MAP[s.status] || STATUS_MAP.waiting;
                 const proc = PROCESSING_MAP[s.processingStatus] || PROCESSING_MAP.none;
                 const canEdit = s.status === "waiting";
-                const canDelete = s.status === "waiting" || s.status === "completed" || s.processingStatus === "error";
+                const isOlderThan24h = new Date().getTime() - new Date(s.createdAt).getTime() > 24 * 60 * 60 * 1000;
+                const transcriptionOk = s.processingStatus === "completed";
+                const canDelete = s.status === "waiting" || (transcriptionOk && isOlderThan24h);
                 const canProcess = s.status === "uploaded" && (s.processingStatus === "uploaded" || s.processingStatus === "error");
                 return (
                   <motion.div key={s.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
@@ -1040,6 +1030,14 @@ export default function Teleatendimento() {
                               <Trash2 className="h-3 w-3" /> Excluir
                             </Button>
                           )}
+                          {!canDelete && s.status !== "waiting" && (
+                            <span className="text-[10px] text-muted-foreground italic flex items-center gap-1">
+                              <Info className="h-3 w-3" />
+                              {s.processingStatus === "completed" 
+                                ? "Exclusão em 24h" 
+                                : "Retenção de áudio ativa"}
+                            </span>
+                          )}
                           {(s.status !== "waiting") && (
                             <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs ml-auto" onClick={(e) => {
                               e.stopPropagation();
@@ -1068,8 +1066,8 @@ export default function Teleatendimento() {
               <p>Ao iniciar uma sessão de teleatendimento com captura de áudio:</p>
               <ul className="list-disc pl-5 space-y-2">
                 <li>O áudio da sessão será capturado <strong>apenas para gerar a transcrição</strong> e organizar o prontuário.</li>
-                <li>O arquivo de áudio será armazenado <strong>apenas temporariamente</strong> em área privada e segura.</li>
-                <li>Após a transcrição, o áudio será <strong>excluído automaticamente</strong> do sistema.</li>
+                <li>O áudio será mantido por pelo menos <strong>24 horas</strong> após a conclusão da transcrição para sua conferência.</li>
+                <li>Sessões sem transcrição concluída serão mantidas no sistema para garantir a segurança dos dados.</li>
                 <li>Apenas o texto organizado permanecerá no prontuário do paciente.</li>
                 <li><strong>Nenhum acesso humano</strong> ao arquivo de áudio bruto é permitido.</li>
               </ul>
