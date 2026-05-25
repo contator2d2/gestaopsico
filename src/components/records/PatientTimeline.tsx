@@ -409,39 +409,56 @@ export default function PatientTimeline({ patients, selectedPatientId, onSelectP
                           </TabsContent>
 
                           <TabsContent value="transcription" className="animate-in fade-in-50 duration-200">
-                            <div className="bg-muted/30 rounded-xl border border-border/50 overflow-hidden">
-                              <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background/50">
-                                <div className="flex items-center gap-2">
-                                  <MessageSquare className="w-4 h-4 text-primary" />
-                                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Transcrição da Sessão</h4>
+                            <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
+                              <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 bg-primary/10 rounded-lg">
+                                    <MessageSquare className="w-4 h-4 text-primary" />
+                                  </div>
+                                  <div>
+                                    <h4 className="text-sm font-bold text-foreground">Transcrição Integral</h4>
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-tight">Registro textual do áudio da sessão</p>
+                                  </div>
                                 </div>
                                 <Button 
-                                  variant="ghost" 
+                                  variant="outline" 
                                   size="sm" 
-                                  className="h-8 gap-2 hover:bg-primary/10 hover:text-primary transition-colors"
+                                  className={cn(
+                                    "h-9 gap-2 transition-all",
+                                    copiedId === record.id ? "bg-success/10 text-success border-success/20" : "hover:bg-primary/5 hover:text-primary"
+                                  )}
                                   onClick={() => handleCopy(record.content || "", record.id)}
                                 >
                                   {copiedId === record.id ? (
-                                    <><Check className="w-3.5 h-3.5 text-success" /> Copiado</>
+                                    <><Check className="w-3.5 h-3.5" /> Copiado</>
                                   ) : (
-                                    <><Copy className="w-3.5 h-3.5" /> Copiar</>
+                                    <><Copy className="w-3.5 h-3.5" /> Copiar Texto</>
                                   )}
                                 </Button>
                               </div>
-                              <div className="p-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border bg-white/50 dark:bg-slate-950/50">
+                              <div className="p-8 bg-white dark:bg-slate-950 min-h-[200px] max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-border">
                                 {record.content ? (
-                                  <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap font-sans text-justify">
-                                    {record.content}
-                                  </p>
+                                  <div className="max-w-prose mx-auto">
+                                    <p className="text-base text-foreground/80 leading-relaxed whitespace-pre-wrap font-sans text-justify selection:bg-primary/20">
+                                      {record.content}
+                                    </p>
+                                  </div>
                                 ) : (
-                                  <div className="py-8 text-center text-muted-foreground">
-                                    <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                                    <p className="text-sm italic">Nenhuma transcrição disponível para esta sessão.</p>
+                                  <div className="py-12 text-center text-muted-foreground">
+                                    <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                                    <p className="text-sm italic font-medium">Nenhuma transcrição disponível para esta sessão.</p>
+                                    <p className="text-xs mt-1 opacity-60">O áudio pode não ter sido processado ou a sessão foi presencial.</p>
                                   </div>
                                 )}
                               </div>
+                              {record.content && (
+                                <div className="px-6 py-3 border-t border-border bg-muted/10 flex justify-end">
+                                  <p className="text-[10px] text-muted-foreground italic">Este conteúdo foi gerado automaticamente via processamento de áudio.</p>
+                                </div>
+                              )}
                             </div>
                           </TabsContent>
+
 
                         </Tabs>
                       ) : (
