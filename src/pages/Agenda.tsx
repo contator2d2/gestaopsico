@@ -430,7 +430,7 @@ export default function Agenda() {
     } else if (blockMode === "period") {
       if (!blockStartDate || !blockEndDate) { toast({ title: "Selecione data inicial e final", variant: "destructive" }); return; }
       eachDayOfInterval({ start: blockStartDate, end: blockEndDate }).forEach(day => {
-        blockMutation.mutate({ ...baseData, date: format(day, "yyyy-MM-dd") });
+        blockMutation.mutate({ ...baseData, date: getLocalDateString(day) });
       });
     } else if (blockMode === "recurring") {
       if (!blockStartDate || !blockEndDate) { toast({ title: "Selecione o período de recorrência", variant: "destructive" }); return; }
