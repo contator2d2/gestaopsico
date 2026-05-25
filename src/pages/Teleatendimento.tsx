@@ -1136,22 +1136,62 @@ export default function Teleatendimento() {
                     <div><p className="text-xs text-muted-foreground">Status</p><Badge className={STATUS_MAP[liveSession.status]?.color}>{STATUS_MAP[liveSession.status]?.label}</Badge></div>
                   </div>
 
-                  {detailSession.transcription && (
-                    <div>
-                      <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2"><FileText className="h-4 w-4" /> Transcrição</p>
-                      <p className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted p-4 rounded-lg max-h-48 overflow-y-auto">{detailSession.transcription}</p>
-                    </div>
-                  )}
+                  <Tabs defaultValue="record" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="record" className="gap-2">
+                        <FileText className="h-4 w-4" /> Registro Clínico
+                      </TabsTrigger>
+                      <TabsTrigger value="transcript" className="gap-2">
+                        <MessageSquare className="h-4 w-4" /> Transcrição
+                      </TabsTrigger>
+                    </TabsList>
 
-                  {detailSession.structuredContent && (
-                    <StructuredSessionContent data={detailSession.structuredContent} />
-                  )}
+                    <TabsContent value="record" className="space-y-4 pt-2">
+                      {detailSession.structuredContent ? (
+                        <StructuredSessionContent data={detailSession.structuredContent} />
+                      ) : (
+                        <div className="p-8 text-center border rounded-lg border-dashed">
+                          <p className="text-sm text-muted-foreground">Nenhum registro estruturado disponível para esta sessão.</p>
+                        </div>
+                      )}
 
-                  {detailSession.recordId && (
-                    <div className="flex items-center gap-2 text-sm text-success">
-                      <CheckCircle className="h-4 w-4" /> Vinculado ao prontuário
-                    </div>
-                  )}
+                      {detailSession.recordId && (
+                        <div className="flex items-center gap-2 text-sm text-success font-medium bg-success/5 p-3 rounded-lg border border-success/10">
+                          <CheckCircle className="h-4 w-4" /> Registro vinculado ao prontuário do paciente
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="transcript" className="space-y-4 pt-2">
+                      {detailSession.transcription ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                              <MessageSquare className="h-4 w-4 text-primary" /> Transcrição do Áudio
+                            </p>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-1"
+                              onClick={() => {
+                                navigator.clipboard.writeText(detailSession.transcription!);
+                                toast.success("Transcrição copiada!");
+                              }}
+                            >
+                              <Copy className="h-3.5 w-3.5" /> Copiar
+                            </Button>
+                          </div>
+                          <div className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted/30 p-4 rounded-lg border max-h-[400px] overflow-y-auto leading-relaxed">
+                            {detailSession.transcription}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-8 text-center border rounded-lg border-dashed">
+                          <p className="text-sm text-muted-foreground">Nenhuma transcrição disponível para esta sessão.</p>
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
 
                   {detailSession.auditLogs && detailSession.auditLogs.length > 0 && (
                     <div>
