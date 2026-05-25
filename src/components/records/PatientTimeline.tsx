@@ -12,7 +12,9 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Brain, TrendingUp, AlertTriangle, Tag, Calendar, FileText, Sparkles, User, Clock, Video, CheckCircle2, XCircle, MessageSquare, Copy, Check } from "lucide-react";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 import StructuredSessionContent from "../telehealth/StructuredSessionContent";
+
 
 
 interface Props {
