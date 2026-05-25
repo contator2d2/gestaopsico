@@ -341,59 +341,77 @@ export default function PatientTimeline({ patients, selectedPatientId, onSelectP
                         </div>
                       )}
 
-                      <Tabs defaultValue="evolution" className="w-full mt-3">
-                        <TabsList className="grid w-full grid-cols-2 mb-4 h-9 bg-muted/50 p-1">
-                          <TabsTrigger value="evolution" className="text-xs gap-1.5 h-7">
-                            <TrendingUp className="w-3.5 h-3.5" /> Evolução
-                          </TabsTrigger>
-                          <TabsTrigger value="transcription" className="text-xs gap-1.5 h-7">
-                            <MessageSquare className="w-3.5 h-3.5" /> Transcrição
-                          </TabsTrigger>
-                        </TabsList>
+                      {record.modality === 'telehealth' || record.aiContent ? (
+                        <Tabs defaultValue="evolution" className="w-full mt-3">
+                          <TabsList className="grid w-full grid-cols-2 mb-4 h-9 bg-muted/50 p-1">
+                            <TabsTrigger value="evolution" className="text-xs gap-1.5 h-7">
+                              <TrendingUp className="w-3.5 h-3.5" /> Evolução
+                            </TabsTrigger>
+                            <TabsTrigger value="transcription" className="text-xs gap-1.5 h-7">
+                              <MessageSquare className="w-3.5 h-3.5" /> Transcrição
+                            </TabsTrigger>
+                          </TabsList>
 
-                        <TabsContent value="evolution" className="space-y-4 animate-in fade-in-50 duration-200">
-                          {record.aiContent ? (
-                            <StructuredSessionContent data={record.aiContent} compact />
-                          ) : (
-                            <div className="space-y-3">
-                              {record.complaint && (
+                          <TabsContent value="evolution" className="space-y-4 animate-in fade-in-50 duration-200">
+                            {record.aiContent ? (
+                              <StructuredSessionContent data={record.aiContent} compact />
+                            ) : (
+                              <div className="space-y-3">
+                                {record.complaint && (
+                                  <div>
+                                    <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">Queixa / Motivo</p>
+                                    <p className="text-sm font-semibold text-foreground">{record.complaint}</p>
+                                  </div>
+                                )}
+                                
                                 <div>
-                                  <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">Queixa / Motivo</p>
-                                  <p className="text-sm font-semibold text-foreground">{record.complaint}</p>
+                                  <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">Pontos Chave</p>
+                                  <p className="text-sm text-muted-foreground leading-relaxed">
+                                    {record.keyPoints || "Nenhum detalhe registrado."}
+                                  </p>
                                 </div>
-                              )}
-                              
-                              <div>
-                                <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">Pontos Chave</p>
-                                <p className="text-sm text-muted-foreground leading-relaxed">
-                                  {record.keyPoints || "Nenhum detalhe registrado."}
+
+                                {record.evolution && (
+                                  <div className="pt-2 border-t border-border/50">
+                                    <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">Análise Clínica</p>
+                                    <p className="text-xs text-muted-foreground italic leading-relaxed">{record.evolution}</p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </TabsContent>
+
+                          <TabsContent value="transcription" className="animate-in fade-in-50 duration-200">
+                            <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
+                              <div className="flex items-center gap-2 mb-3">
+                                <MessageSquare className="w-4 h-4 text-primary" />
+                                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Descrição do Áudio (Transcrição)</h4>
+                              </div>
+                              <div className="max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border">
+                                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                                  {record.content || "Nenhuma transcrição disponível para esta sessão."}
                                 </p>
                               </div>
-
-                              {record.evolution && (
-                                <div className="pt-2 border-t border-border/50">
-                                  <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">Evolução Clínica</p>
-                                  <p className="text-xs text-muted-foreground italic leading-relaxed">{record.evolution}</p>
-                                </div>
-                              )}
+                            </div>
+                          </TabsContent>
+                        </Tabs>
+                      ) : (
+                        <div className="space-y-2 mt-2">
+                          {record.complaint && <p className="text-sm font-semibold text-foreground">{record.complaint}</p>}
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            {record.keyPoints || record.content || "Nenhum detalhe registrado."}
+                          </p>
+                          
+                          {record.evolution && (
+                            <div className="mt-2 pt-2 border-t border-border/50">
+                              <p className="text-[11px] font-medium text-primary uppercase flex items-center gap-1">
+                                <TrendingUp className="w-3 h-3" /> Evolução:
+                              </p>
+                              <p className="text-xs text-muted-foreground italic">{record.evolution}</p>
                             </div>
                           )}
-                        </TabsContent>
-
-                        <TabsContent value="transcription" className="animate-in fade-in-50 duration-200">
-                          <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
-                            <div className="flex items-center gap-2 mb-3">
-                              <MessageSquare className="w-4 h-4 text-primary" />
-                              <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Descrição do Áudio (Transcrição)</h4>
-                            </div>
-                            <div className="max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border">
-                              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                                {record.content || "Nenhuma transcrição disponível para esta sessão."}
-                              </p>
-                            </div>
-                          </div>
-                        </TabsContent>
-                      </Tabs>
+                        </div>
+                      )}
 
                       {record.themes && record.themes.length > 0 && (
                         <div className="flex gap-1 mt-2.5 flex-wrap">
