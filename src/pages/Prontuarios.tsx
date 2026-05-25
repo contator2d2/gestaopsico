@@ -956,14 +956,29 @@ export default function Prontuarios() {
               {selectedRecord.content && selectedRecord.complaint && (
                 <Tabs defaultValue="evolution" className="w-full mt-4">
                   <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="evolution">Evolução</TabsTrigger>
+                    <TabsTrigger value="evolution">Anotações</TabsTrigger>
                     <TabsTrigger value="transcript">Transcrição</TabsTrigger>
                   </TabsList>
                   <TabsContent value="evolution" className="pt-2">
-                    <RecordSection label="Anotações da sessão" content={selectedRecord.content} />
+                    <div className="bg-muted/50 rounded-lg p-3 text-sm whitespace-pre-wrap">
+                      {selectedRecord.content}
+                    </div>
                   </TabsContent>
                   <TabsContent value="transcript" className="pt-2">
-                    <RecordSection label="Transcrição completa" content={selectedRecord.content} />
+                    <div className="flex justify-between items-center mb-2">
+                      <Label className="text-xs text-muted-foreground">Transcrição completa da sessão</Label>
+                      <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => {
+                        navigator.clipboard.writeText(selectedRecord.content || "");
+                        toast.success("Transcrição copiada!");
+                      }}>
+                        <Copy className="h-3 w-3" /> Copiar
+                      </Button>
+                    </div>
+                    <ScrollArea className="h-[300px] w-full rounded-md border p-4 bg-muted/30">
+                      <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed font-sans">
+                        {selectedRecord.content}
+                      </div>
+                    </ScrollArea>
                   </TabsContent>
                 </Tabs>
               )}
