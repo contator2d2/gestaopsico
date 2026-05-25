@@ -215,9 +215,9 @@ async function ensureReceivableForAppointment(apt, userId) {
     data: {
       professionalId: userId,
       type: 'receivable',
-      description: `Sessão - ${patient.name} - ${new Date(apt.date).toLocaleDateString('pt-BR')}`,
-      value,
-      dueDate: apt.date,
+                    description: `Sessão - ${patient.name} - ${new Date(apt.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`,
+                    value,
+                    dueDate: apt.date,
       category: 'Consulta',
       patientId: apt.patientId,
       status: 'pending',

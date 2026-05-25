@@ -466,7 +466,7 @@ router.post('/:id/start', async (req, res) => {
                   data: {
                     professionalId: req.userId,
                     type: 'receivable',
-                    description: `Sessão - ${apt.patient.name} - ${new Date(apt.date).toLocaleDateString('pt-BR')}`,
+                    description: `Sessão - ${apt.patient.name} - ${new Date(apt.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`,
                     value,
                     dueDate: apt.date,
                     category: 'Consulta',
