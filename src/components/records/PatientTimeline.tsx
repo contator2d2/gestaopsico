@@ -445,22 +445,29 @@ export default function PatientTimeline({ patients, selectedPatientId, onSelectP
 
                         </Tabs>
                       ) : (
-                        <div className="space-y-2 mt-2">
-                          {record.complaint && <p className="text-sm font-semibold text-foreground">{record.complaint}</p>}
-                          <p className="text-sm text-muted-foreground leading-relaxed">
-                            {record.keyPoints || record.content || "Nenhum detalhe registrado."}
-                          </p>
+                        <div className="space-y-3 mt-3 p-4 bg-muted/20 rounded-xl border border-border/40">
+                          {record.complaint && (
+                            <div>
+                              <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-0.5">Queixa / Motivo</p>
+                              <p className="text-sm font-semibold text-foreground">{record.complaint}</p>
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-0.5">Pontos Chave</p>
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                              {record.keyPoints || "Nenhum detalhe registrado."}
+                            </p>
+                          </div>
                           
                           {record.evolution && (
-                            <div className="mt-2 pt-2 border-t border-border/50">
-                              <p className="text-[11px] font-medium text-primary uppercase flex items-center gap-1">
-                                <TrendingUp className="w-3 h-3" /> Evolução:
-                              </p>
-                              <p className="text-xs text-muted-foreground italic">{record.evolution}</p>
+                            <div className="pt-2 border-t border-border/50">
+                              <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-0.5">Análise Clínica</p>
+                              <p className="text-xs text-muted-foreground italic leading-relaxed">{record.evolution}</p>
                             </div>
                           )}
                         </div>
                       )}
+
 
                       {record.themes && record.themes.length > 0 && (
                         <div className="flex gap-1 mt-2.5 flex-wrap">
