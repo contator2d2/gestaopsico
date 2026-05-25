@@ -289,9 +289,16 @@ export default function Prontuarios() {
   const selectedPatientApts = useMemo(() => {
     if (!selectedEntity || selectedEntity.type !== "patient") return { upcoming: [], past: [] };
     const now = new Date();
+    const todayStr = getLocalDateString(now);
     const filtered = patientApts.filter((a: any) => a.patientId === selectedEntity.id || a.patient?.id === selectedEntity.id);
-    const upcoming = filtered.filter((a: any) => new Date(a.date) >= new Date(now.toISOString().split("T")[0]) && a.status !== "cancelled");
-    const past = filtered.filter((a: any) => new Date(a.date) < new Date(now.toISOString().split("T")[0]) || a.status === "cancelled" || a.status === "completed");
+    const upcoming = filtered.filter((a: any) => {
+      const aptDate = a.date?.split("T")[0];
+      return aptDate >= todayStr && a.status !== "cancelled";
+    });
+    const past = filtered.filter((a: any) => {
+      const aptDate = a.date?.split("T")[0];
+      return aptDate < todayStr || a.status === "cancelled" || a.status === "completed";
+    });
     return {
       upcoming: upcoming.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()),
       past: past.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()),
