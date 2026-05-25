@@ -8,11 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Brain, TrendingUp, AlertTriangle, Tag, Calendar, FileText, Sparkles, User, Clock, Video, CheckCircle2, XCircle, MessageSquare } from "lucide-react";
+import { Brain, TrendingUp, AlertTriangle, Tag, Calendar, FileText, Sparkles, User, Clock, Video, CheckCircle2, XCircle, MessageSquare, Copy, Check } from "lucide-react";
 import { motion } from "framer-motion";
 import StructuredSessionContent from "../telehealth/StructuredSessionContent";
+
 
 interface Props {
   patients: any[];
