@@ -1256,7 +1256,7 @@ function MonthView({ selectedDate, aptsByDate, onSelectDate, professionalColorMa
       </div>
       <div className="grid grid-cols-7">
         {days.map((day, i) => {
-          const key = format(day, "yyyy-MM-dd");
+          const key = getLocalDateString(day);
           const apts = aptsByDate[key] || [];
           const inMonth = isSameMonth(day, selectedDate);
           const today = isToday(day);
