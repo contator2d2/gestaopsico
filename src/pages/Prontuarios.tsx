@@ -22,7 +22,7 @@ import {
   FileText, Plus, Search, Calendar, User, Edit, Eye, Sparkles, Brain,
   AlertTriangle, TrendingUp, Tag, BarChart3, Clock, ChevronRight, ArrowLeft,
   Users, Heart, Filter, CalendarDays, Trash2, RefreshCw, CheckCircle2, Smile,
-  DollarSign, ClipboardList, Copy
+  DollarSign, ClipboardList, Copy, MessageSquare
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import PatientTimeline from "@/components/records/PatientTimeline";
