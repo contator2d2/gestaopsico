@@ -947,25 +947,69 @@ export default function Prontuarios() {
                 </Button>
               </div>
 
-              {selectedRecord.complaint && <RecordSection label="Motivo / Demanda" content={selectedRecord.complaint} />}
-              {selectedRecord.keyPoints && <RecordSection label="Principais Pontos da Sessão" content={selectedRecord.keyPoints} />}
-              {selectedRecord.clinicalObservations && <RecordSection label="Observações Clínicas" content={selectedRecord.clinicalObservations} />}
-              {selectedRecord.interventions && <RecordSection label="Intervenções Realizadas" content={selectedRecord.interventions} />}
-              {selectedRecord.evolution && <RecordSection label="Evolução" content={selectedRecord.evolution} icon={<TrendingUp className="w-4 h-4" />} />}
-              {selectedRecord.nextSteps && <RecordSection label="Próximos Passos" content={selectedRecord.nextSteps} icon={<ChevronRight className="w-4 h-4" />} />}
-              {selectedRecord.content && !selectedRecord.complaint && <RecordSection label="Conteúdo / Transcrição" content={selectedRecord.content} />}
-              {selectedRecord.content && selectedRecord.complaint && (
-                <Tabs defaultValue="evolution" className="w-full mt-4">
+              {selectedRecord.content && (
+                <Tabs defaultValue={selectedRecord.complaint ? "evolution" : "transcript"} className="w-full mt-4">
                   <TabsList className="grid w-full grid-cols-2 mb-4 h-9 bg-muted/50 p-1">
-                    <TabsTrigger value="evolution" className="text-xs gap-1.5 h-7">Anotações</TabsTrigger>
+                    <TabsTrigger value="evolution" className="text-xs gap-1.5 h-7">Relatório IA</TabsTrigger>
                     <TabsTrigger value="transcript" className="text-xs gap-1.5 h-7">Transcrição</TabsTrigger>
                   </TabsList>
-                  <TabsContent value="evolution" className="space-y-4">
-                    <div className="bg-muted/50 rounded-xl p-4 text-sm whitespace-pre-wrap leading-relaxed">
-                      {selectedRecord.content}
+                  
+                  <TabsContent value="evolution" className="space-y-6 animate-in fade-in-50 duration-300">
+                    {selectedRecord.aiContent && (
+                      <div>
+                        <Label className="text-[10px] uppercase font-bold text-primary tracking-wider flex items-center gap-1 mb-2">
+                          <Sparkles className="w-3.5 h-3.5" /> Análise Estruturada IA
+                        </Label>
+                        {(() => {
+                          try {
+                            JSON.parse(selectedRecord.aiContent);
+                            return <StructuredSessionContent data={selectedRecord.aiContent} />;
+                          } catch {
+                            return <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 text-sm whitespace-pre-wrap leading-relaxed">{selectedRecord.aiContent}</div>;
+                          }
+                        })()}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {selectedRecord.complaint && <RecordSection label="Motivo / Demanda" content={selectedRecord.complaint} />}
+                      {selectedRecord.keyPoints && <RecordSection label="Pontos Chave" content={selectedRecord.keyPoints} />}
                     </div>
+
+                    <div className="space-y-4">
+                      {selectedRecord.clinicalObservations && <RecordSection label="Observações Clínicas" content={selectedRecord.clinicalObservations} />}
+                      {selectedRecord.interventions && <RecordSection label="Intervenções" content={selectedRecord.interventions} />}
+                      {selectedRecord.evolution && <RecordSection label="Evolução Clínica" content={selectedRecord.evolution} icon={<TrendingUp className="w-4 h-4" />} />}
+                      {selectedRecord.nextSteps && <RecordSection label="Próximos Passos" content={selectedRecord.nextSteps} icon={<ChevronRight className="w-4 h-4" />} />}
+                    </div>
+
+                    {selectedRecord.aiClinicalSupport && (
+                      <div className="pt-2">
+                        <Label className="text-[10px] uppercase font-bold text-primary tracking-wider flex items-center gap-1 mb-2">
+                          <Brain className="w-3.5 h-3.5" /> Apoio Clínico IA
+                        </Label>
+                        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-sm whitespace-pre-wrap leading-relaxed">
+                          <div className="flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-400 mb-2 font-bold uppercase tracking-tight">
+                            <AlertTriangle className="w-3 h-3" /> Sugestão de apoio — não substitui avaliação profissional
+                          </div>
+                          {selectedRecord.aiClinicalSupport}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedRecord.themes && selectedRecord.themes.length > 0 && (
+                      <div className="pt-2">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider flex items-center gap-1 mb-2">
+                          <Tag className="w-3 h-3" /> Temas Identificados
+                        </Label>
+                        <div className="flex gap-1.5 flex-wrap">
+                          {selectedRecord.themes.map((t) => <Badge key={t} variant="secondary" className="text-[10px] py-0">{t}</Badge>)}
+                        </div>
+                      </div>
+                    )}
                   </TabsContent>
-                  <TabsContent value="transcript" className="space-y-4">
+
+                  <TabsContent value="transcript" className="animate-in fade-in-50 duration-300">
                     <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
                       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
                         <div className="flex items-center gap-3">
@@ -989,7 +1033,7 @@ export default function Prontuarios() {
                           <Copy className="w-3.5 h-3.5" /> Copiar Texto
                         </Button>
                       </div>
-                      <div className="p-8 bg-white dark:bg-slate-950 min-h-[200px] max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-border">
+                      <div className="p-8 bg-white dark:bg-slate-950 min-h-[300px] max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-border">
                         <div className="max-w-prose mx-auto">
                           <p className="text-base text-foreground/80 leading-relaxed whitespace-pre-wrap font-sans text-justify selection:bg-primary/20">
                             {selectedRecord.content}
@@ -1004,38 +1048,14 @@ export default function Prontuarios() {
                 </Tabs>
               )}
 
-              {selectedRecord.themes && selectedRecord.themes.length > 0 && (
-                <div>
-                  <Label className="text-xs text-muted-foreground flex items-center gap-1"><Tag className="w-3 h-3" /> Temas</Label>
-                  <div className="flex gap-1.5 flex-wrap mt-1">
-                    {selectedRecord.themes.map((t) => <Badge key={t} variant="secondary" className="text-xs">{t}</Badge>)}
-                  </div>
-                </div>
-              )}
-
-              {selectedRecord.aiContent && (
-                <div>
-                  <Label className="text-xs text-primary flex items-center gap-1"><Sparkles className="w-3 h-3" /> Resumo IA</Label>
-                  {(() => {
-                    try {
-                      JSON.parse(selectedRecord.aiContent);
-                      return <div className="mt-2"><StructuredSessionContent data={selectedRecord.aiContent} /></div>;
-                    } catch {
-                      return <div className="bg-primary/5 border border-primary/10 rounded-lg p-4 mt-1 text-sm whitespace-pre-wrap">{selectedRecord.aiContent}</div>;
-                    }
-                  })()}
-                </div>
-              )}
-
-              {selectedRecord.aiClinicalSupport && (
-                <div>
-                  <Label className="text-xs text-primary flex items-center gap-1"><Brain className="w-3 h-3" /> Apoio Clínico IA</Label>
-                  <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mt-1 text-sm whitespace-pre-wrap">
-                    <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 mb-2">
-                      <AlertTriangle className="w-3 h-3" /> Sugestão de apoio — não substitui avaliação profissional
-                    </div>
-                    {selectedRecord.aiClinicalSupport}
-                  </div>
+              {!selectedRecord.content && (
+                <div className="space-y-6 mt-4">
+                  {selectedRecord.complaint && <RecordSection label="Motivo / Demanda" content={selectedRecord.complaint} />}
+                  {selectedRecord.keyPoints && <RecordSection label="Principais Pontos da Sessão" content={selectedRecord.keyPoints} />}
+                  {selectedRecord.clinicalObservations && <RecordSection label="Observações Clínicas" content={selectedRecord.clinicalObservations} />}
+                  {selectedRecord.interventions && <RecordSection label="Intervenções Realizadas" content={selectedRecord.interventions} />}
+                  {selectedRecord.evolution && <RecordSection label="Evolução" content={selectedRecord.evolution} icon={<TrendingUp className="w-4 h-4" />} />}
+                  {selectedRecord.nextSteps && <RecordSection label="Próximos Passos" content={selectedRecord.nextSteps} icon={<ChevronRight className="w-4 h-4" />} />}
                 </div>
               )}
 
