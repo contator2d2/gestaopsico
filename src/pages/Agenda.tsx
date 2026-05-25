@@ -466,7 +466,7 @@ export default function Agenda() {
     return map;
   }, [appointments]);
 
-  const getAptsForDate = (d: Date) => aptsByDate[format(d, "yyyy-MM-dd")] || [];
+  const getAptsForDate = (d: Date) => aptsByDate[getLocalDateString(d)] || [];
 
   const professionalsById = useMemo(() => {
     return new Map((Array.isArray(professionals) ? professionals : []).map((professional: any) => [professional.id, professional]));
