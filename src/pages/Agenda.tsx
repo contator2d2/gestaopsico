@@ -173,7 +173,7 @@ export default function Agenda() {
   const [editApt, setEditApt] = useState<Partial<Consulta> | null>(null);
   const [editMode, setEditMode] = useState(false);
 
-  const dateStr = format(selectedDate, "yyyy-MM-dd");
+  const dateStr = getLocalDateString(selectedDate);
 
   const dateRange = useMemo(() => {
     if (viewMode === "pipeline") {
