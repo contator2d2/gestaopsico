@@ -107,16 +107,20 @@ function getDateKey(value?: string | Date | null) {
     // Extract YYYY-MM-DD from any string that starts with it (ISO or simple date)
     const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
     if (match) return match[1];
+    
+    // Try to parse as date and then get local string
+    try {
+      const d = new Date(value);
+      if (!isNaN(d.getTime())) return getLocalDateString(d);
+    } catch {
+      return "";
+    }
   }
 
   const d = value instanceof Date ? value : new Date(value);
   if (isNaN(d.getTime())) return "";
 
-  // Always use local components to avoid UTC shift
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return getLocalDateString(d);
 }
 
 
