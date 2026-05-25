@@ -952,8 +952,21 @@ export default function Prontuarios() {
               {selectedRecord.interventions && <RecordSection label="Intervenções Realizadas" content={selectedRecord.interventions} />}
               {selectedRecord.evolution && <RecordSection label="Evolução" content={selectedRecord.evolution} icon={<TrendingUp className="w-4 h-4" />} />}
               {selectedRecord.nextSteps && <RecordSection label="Próximos Passos" content={selectedRecord.nextSteps} icon={<ChevronRight className="w-4 h-4" />} />}
-              {selectedRecord.content && !selectedRecord.complaint && <RecordSection label="Conteúdo" content={selectedRecord.content} />}
-              {selectedRecord.content && selectedRecord.complaint && <RecordSection label="Anotações gerais" content={selectedRecord.content} />}
+              {selectedRecord.content && !selectedRecord.complaint && <RecordSection label="Conteúdo / Transcrição" content={selectedRecord.content} />}
+              {selectedRecord.content && selectedRecord.complaint && (
+                <Tabs defaultValue="evolution" className="w-full mt-4">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="evolution">Evolução</TabsTrigger>
+                    <TabsTrigger value="transcript">Transcrição</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="evolution" className="pt-2">
+                    <RecordSection label="Anotações da sessão" content={selectedRecord.content} />
+                  </TabsContent>
+                  <TabsContent value="transcript" className="pt-2">
+                    <RecordSection label="Transcrição completa" content={selectedRecord.content} />
+                  </TabsContent>
+                </Tabs>
+              )}
 
               {selectedRecord.themes && selectedRecord.themes.length > 0 && (
                 <div>
