@@ -383,6 +383,31 @@ export default function FinanceiroCompleto() {
     toast({ title: "Relatório exportado!", description: `relatorio_financeiro_${currentMonth}.txt` });
   };
 
+  // Prepara dados para os gráficos de evolução por período
+  const periodData = useMemo(() => {
+    if (!report?.accounts) return [];
+
+    // Agrupar contas por data
+    const grouped = (report.accounts as any[]).reduce((acc, curr) => {
+      const date = format(new Date(curr.dueDate || new Date()), "dd/MM", { locale: ptBR });
+      if (!acc[date]) acc[date] = { name: date, receita: 0, despesa: 0 };
+      
+      if (curr.type === "receivable") {
+        acc[date].receita += Number(curr.value);
+      } else {
+        acc[date].despesa += Number(curr.value);
+      }
+      return acc;
+    }, {} as Record<string, any>);
+
+    // Converter para array e ordenar por data (presumindo que as contas do mês já venham ordenadas ou sejam poucas)
+    return Object.values(grouped).sort((a: any, b: any) => {
+      const [dayA, monthA] = a.name.split("/").map(Number);
+      const [dayB, monthB] = b.name.split("/").map(Number);
+      return dayA - dayB;
+    });
+  }, [report]);
+
   // Prepara dados para os gráficos de projeção
   const projectionData = useMemo(() => {
     if (!summaryData && !report) return [];
@@ -396,9 +421,6 @@ export default function FinanceiroCompleto() {
       const monthKey = format(monthDate, "yyyy-MM");
       const isFuture = i > 0;
       
-      // Simulamos ou buscamos dados
-      // Para o mês atual (i=0), usamos dados reais se disponíveis
-      // Para meses futuros, estimamos baseado na receita futura reportada ou média
       let revenue = 0;
       let expenses = 0;
 
@@ -406,10 +428,8 @@ export default function FinanceiroCompleto() {
         revenue = summaryData?.totalReceivable ?? report?.revenue?.total ?? 0;
         expenses = summaryData?.totalPayable ?? report?.expenses?.total ?? 0;
       } else {
-        // Estimativa simples: Dilui a receita futura reportada nos meses seguintes
-        // ou usa uma média baseada no mês atual para projeção
         const futureRevenueTotal = report?.futureRevenue ?? (summaryData?.totalReceivable ?? 0) * 2;
-        revenue = (futureRevenueTotal / 3) * (1 + (i * 0.05)); // Pequeno incremento simulado
+        revenue = (futureRevenueTotal / 3) * (1 + (i * 0.05));
         expenses = (summaryData?.totalPayable ?? report?.expenses?.total ?? 0) * (1 + (i * 0.02));
       }
 
@@ -562,46 +582,124 @@ export default function FinanceiroCompleto() {
             <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}</div>
           ) : (
             <>
-              {/* Recent transactions */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Movimentações do Mês</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {(report?.accounts || []).length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-6">Nenhuma movimentação neste mês</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {(report?.accounts || []).slice(0, 15).map((acc: any) => {
-                        const sc = statusConfig[acc.status] || statusConfig.pending;
-                        return (
-                          <div key={acc.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                            <div className="flex items-center gap-3">
-                              {acc.type === "receivable" ? (
-                                <ArrowUpRight className="w-4 h-4 text-green-600" />
-                              ) : (
-                                <ArrowDownRight className="w-4 h-4 text-destructive" />
-                              )}
-                              <div>
-                                <p className="text-sm font-medium text-foreground">{acc.description}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {acc.patientName || acc.category || "—"} • {acc.dueDate ? new Date(acc.dueDate).toLocaleDateString("pt-BR") : "—"}
-                                </p>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Evolution Chart */}
+                <Card className="lg:col-span-2">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-base font-semibold">Evolução no Período</CardTitle>
+                    <div className="flex items-center gap-4 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-3 rounded-full bg-green-500" />
+                        <span className="text-muted-foreground">Receitas</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-3 rounded-full bg-destructive" />
+                        <span className="text-muted-foreground">Despesas</span>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[300px] w-full mt-4">
+                      {periodData.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                          Sem dados para o período
+                        </div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={periodData}>
+                            <defs>
+                              <linearGradient id="colorReceita" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                              </linearGradient>
+                              <linearGradient id="colorDespesa" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.1}/>
+                                <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                            <XAxis 
+                              dataKey="name" 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tick={{ fill: 'currentColor', opacity: 0.6, fontSize: 11 }}
+                            />
+                            <YAxis 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tick={{ fill: 'currentColor', opacity: 0.6, fontSize: 11 }}
+                              tickFormatter={(value) => `R$ ${value}`}
+                            />
+                            <Tooltip 
+                              contentStyle={{ 
+                                backgroundColor: 'hsl(var(--background))', 
+                                borderColor: 'hsl(var(--border))',
+                                borderRadius: '8px',
+                                fontSize: '12px'
+                              }}
+                              formatter={(value: number) => [fmt(value), '']}
+                            />
+                            <Area 
+                              type="monotone" 
+                              dataKey="receita" 
+                              stroke="#10b981" 
+                              strokeWidth={2}
+                              fillOpacity={1} 
+                              fill="url(#colorReceita)" 
+                            />
+                            <Area 
+                              type="monotone" 
+                              dataKey="despesa" 
+                              stroke="#ef4444" 
+                              strokeWidth={2}
+                              fillOpacity={1} 
+                              fill="url(#colorDespesa)" 
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Recent transactions */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Movimentações</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {(report?.accounts || []).length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-6">Nenhuma movimentação</p>
+                    ) : (
+                      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                        {(report?.accounts || []).slice(0, 10).map((acc: any) => {
+                          const sc = statusConfig[acc.status] || statusConfig.pending;
+                          return (
+                            <div key={acc.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                              <div className="flex items-center gap-2 min-w-0">
+                                {acc.type === "receivable" ? (
+                                  <ArrowUpRight className="w-3.5 h-3.5 text-green-600 shrink-0" />
+                                ) : (
+                                  <ArrowDownRight className="w-3.5 h-3.5 text-destructive shrink-0" />
+                                )}
+                                <div className="min-w-0">
+                                  <p className="text-xs font-medium text-foreground truncate">{acc.description}</p>
+                                  <p className="text-[10px] text-muted-foreground">
+                                    {acc.dueDate ? format(new Date(acc.dueDate), "dd/MM") : "—"}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${sc.class}`}>{sc.label}</span>
-                              <span className={`text-sm font-semibold ${acc.type === "receivable" ? "text-green-600" : "text-destructive"}`}>
-                                {acc.type === "payable" ? "- " : ""}{fmt(acc.value)}
+                              <span className={`text-xs font-semibold shrink-0 ${acc.type === "receivable" ? "text-green-600" : "text-destructive"}`}>
+                                {fmt(acc.value)}
                               </span>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </>
           )}
         </TabsContent>
