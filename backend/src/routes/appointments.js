@@ -176,6 +176,65 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: validationError });
     }
 
+    const { recurring, recurrenceFrequency, recurrenceDuration } = req.body;
+
+    // Check conflict for the primary appointment
+    const conflicts = await findConflicts(data.professionalId, data.date, data.time, data.duration);
+    if (conflicts.length > 0) {
+      return res.status(409).json({ 
+        error: 'Conflito de agenda', 
+        details: 'Já existe um agendamento para este horário.',
+        conflicts 
+      });
+    }
+
+    if (recurring && recurrenceFrequency && recurrenceDuration) {
+      const durationMonths = recurrenceDuration === '2m' ? 2 : 1;
+      const recurringDates = generateRecurringDates(data.date, recurrenceFrequency, durationMonths);
+      
+      const allConflicts = [];
+      for (const rDate of recurringDates) {
+        const dateStr = rDate.toISOString().split('T')[0];
+        const c = await findConflicts(data.professionalId, dateStr, data.time, data.duration);
+        if (c.length > 0) {
+          allConflicts.push({ date: dateStr, conflicts: c });
+        }
+      }
+
+      if (allConflicts.length > 0) {
+        return res.status(409).json({ 
+          error: 'Conflitos nas recorrências', 
+          details: 'Algumas datas da recorrência possuem conflitos.',
+          recurringConflicts: allConflicts 
+        });
+      }
+
+      // Create all in a transaction
+      const results = await prisma.$transaction(async (tx) => {
+        const first = await tx.appointment.create({
+          data,
+          include: {
+            patient: { select: { id: true, name: true } },
+            couple: { select: { id: true, name: true } }
+          }
+        });
+
+        const others = await Promise.all(recurringDates.map(rDate => 
+          tx.appointment.create({
+            data: { ...data, date: rDate },
+            include: {
+              patient: { select: { id: true, name: true } },
+              couple: { select: { id: true, name: true } }
+            }
+          })
+        ));
+
+        return [first, ...others];
+      });
+
+      return res.status(201).json(results[0]); // Return the first one as usual
+    }
+
     const appointment = await prisma.appointment.create({
       data,
       include: {
