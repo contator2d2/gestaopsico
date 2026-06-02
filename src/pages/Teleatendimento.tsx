@@ -1100,21 +1100,124 @@ export default function Teleatendimento() {
 
         {/* New Session Dialog */}
         <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Nova Sessão de Teleatendimento</DialogTitle>
               <DialogDescription>Configure a sessão com captura de áudio segura</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-foreground">Paciente *</label>
-                <Select value={newSessionData.patientId} onValueChange={v => setNewSessionData(p => ({ ...p, patientId: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o paciente" /></SelectTrigger>
-                  <SelectContent>
-                    {patients.map((p: Patient) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-4 py-2">
+              <Tabs 
+                value={newSessionData.sessionType} 
+                onValueChange={(v) => setNewSessionData(p => ({ ...p, sessionType: v as "individual" | "couple" }))}
+                className="w-full"
+              >
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="individual">Individual</TabsTrigger>
+                  <TabsTrigger value="couple">Casal</TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {newSessionData.sessionType === "individual" ? (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Paciente *</label>
+                  <Popover open={patientSearchOpen} onOpenChange={setPatientSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={patientSearchOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {newSessionData.patientId
+                          ? patients.find((p: Patient) => p.id === newSessionData.patientId)?.name
+                          : "Pesquisar paciente..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                      <Command>
+                        <CommandInput placeholder="Digite o nome do paciente..." />
+                        <CommandList>
+                          <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
+                          <CommandGroup>
+                            {patients.map((p: Patient) => (
+                              <CommandItem
+                                key={p.id}
+                                value={p.name}
+                                onSelect={() => {
+                                  setNewSessionData(prev => ({ ...prev, patientId: p.id }));
+                                  setPatientSearchOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    newSessionData.patientId === p.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {p.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Casal *</label>
+                  <Popover open={coupleSearchOpen} onOpenChange={setCoupleSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={coupleSearchOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {newSessionData.coupleId
+                          ? couples.find((c: Casal) => c.id === newSessionData.coupleId)?.name
+                          : "Pesquisar casal..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                      <Command>
+                        <CommandInput placeholder="Digite o nome do casal..." />
+                        <CommandList>
+                          <CommandEmpty>Nenhum casal encontrado.</CommandEmpty>
+                          <CommandGroup>
+                            {couples.map((c: Casal) => (
+                              <CommandItem
+                                key={c.id}
+                                value={c.name}
+                                onSelect={() => {
+                                  setNewSessionData(prev => ({ ...prev, coupleId: c.id }));
+                                  setCoupleSearchOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    newSessionData.coupleId === c.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span>{c.name}</span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {c.patient1?.name} & {c.patient2?.name}
+                                  </span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+
               <div>
                 <label className="text-sm font-medium text-foreground">Link da Reunião (opcional)</label>
                 <Input placeholder="https://meet.google.com/... ou zoom.us/..."
