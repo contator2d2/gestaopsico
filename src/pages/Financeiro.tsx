@@ -82,6 +82,11 @@ export default function Financeiro() {
     return p;
   }, [period, statusFilter, selectedPatientId, summaryMonth]);
 
+  const { data: accountsData, isLoading } = useQuery({
+    queryKey: ["accounts", queryParams],
+    queryFn: () => accountsApi.list(queryParams),
+  });
+
   const { data: summary } = useQuery({
     queryKey: ["accounts-summary", summaryMonth],
     queryFn: () => accountsApi.summary(summaryMonth),
