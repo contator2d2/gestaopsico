@@ -60,11 +60,18 @@ export default function Financeiro() {
 
   const queryParams = useMemo(() => {
     const p: Record<string, string> = { type: "receivable" };
-    if (period !== "all") p.period = period;
+    if (period !== "all") {
+      // Se for um período predefinido que corresponde a um mês, passamos o summaryMonth
+      if (["this_month", "next_month", "last_month"].includes(period)) {
+        p.period = summaryMonth;
+      } else {
+        p.period = period;
+      }
+    }
     if (statusFilter !== "all") p.status = statusFilter;
     if (selectedPatientId) p.patientId = selectedPatientId;
     return p;
-  }, [period, statusFilter, selectedPatientId]);
+  }, [period, statusFilter, selectedPatientId, summaryMonth]);
 
   const { data: accountsData, isLoading } = useQuery({
     queryKey: ["accounts", queryParams],
