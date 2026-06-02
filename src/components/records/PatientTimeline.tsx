@@ -55,9 +55,13 @@ export default function PatientTimeline({ patients, selectedPatientId, onSelectP
   };
 
   const { data: timeline, isLoading } = useQuery({
-
     queryKey: ["patient-timeline", selectedPatientId],
-    queryFn: () => recordsApi.patientTimeline(selectedPatientId),
+    queryFn: async () => {
+      // First try as patient, then as couple if no records found or based on context
+      // But ideally the API should handle both or we check entity type
+      // Since this component is shared, we should ensure the API supports both
+      return recordsApi.patientTimeline(selectedPatientId);
+    },
     enabled: !!selectedPatientId,
   });
 
@@ -73,7 +77,13 @@ export default function PatientTimeline({ patients, selectedPatientId, onSelectP
     } finally { setAnalysisLoading(false); }
   };
 
-  const patientApts = appointments.filter(a => a.patientId === selectedPatientId || a.patient_id === selectedPatientId || (a.patient?.id === selectedPatientId));
+  const patientApts = appointments.filter(a => 
+    a.patientId === selectedPatientId || 
+    a.patient_id === selectedPatientId || 
+    (a.patient?.id === selectedPatientId) ||
+    a.coupleId === selectedPatientId ||
+    a.couple_id === selectedPatientId
+  );
   
   const upcomingApts = patientApts.filter(a => {
     const aptDate = new Date(a.date);

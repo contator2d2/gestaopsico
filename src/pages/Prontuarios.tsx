@@ -99,11 +99,16 @@ export default function Prontuarios() {
     enabled: isCreateOpen,
   });
 
-  // Appointments for the selected patient (detail view)
+  // Appointments for the selected entity (detail view)
   const { data: patientApts = [], isLoading: aptsLoading } = useQuery<Consulta[]>({
     queryKey: ["patient-appointments", selectedEntity?.id],
-    queryFn: () => consultasApi.list({ patientId: selectedEntity?.id || "" }),
-    enabled: !!selectedEntity && selectedEntity.type === "patient",
+    queryFn: () => {
+      if (selectedEntity?.type === "couple") {
+        return consultasApi.list({ coupleId: selectedEntity.id });
+      }
+      return consultasApi.list({ patientId: selectedEntity?.id || "" });
+    },
+    enabled: !!selectedEntity,
   });
 
   const [editAptDialog, setEditAptDialog] = useState(false);
@@ -288,10 +293,19 @@ export default function Prontuarios() {
 
   // Filter appointments for the selected patient
   const selectedPatientApts = useMemo(() => {
-    if (!selectedEntity || selectedEntity.type !== "patient") return { upcoming: [], past: [] };
+    if (!selectedEntity) return { upcoming: [], past: [] };
     const now = new Date();
     const todayStr = getLocalDateString(now);
-    const filtered = patientApts.filter((a: any) => a.patientId === selectedEntity.id || a.patient?.id === selectedEntity.id);
+    
+    // Filter based on entity type
+    const filtered = patientApts.filter((a: any) => {
+      if (selectedEntity.type === "patient") {
+        return a.patientId === selectedEntity.id || a.patient?.id === selectedEntity.id;
+      } else {
+        return a.coupleId === selectedEntity.id || a.couple_id === selectedEntity.id;
+      }
+    });
+
     const upcoming = filtered.filter((a: any) => {
       const aptDate = a.date?.split("T")[0];
       return aptDate >= todayStr && a.status !== "cancelled";
@@ -334,8 +348,17 @@ export default function Prontuarios() {
           </div>
         </div>
         <div className="flex gap-2">
-          {selectedEntity?.type === "patient" && (
-            <Button variant="outline" onClick={() => setEditAptDialog(true)}>
+          {(selectedEntity?.type === "patient" || selectedEntity?.type === "couple") && (
+            <Button variant="outline" onClick={() => {
+              const newApt: Partial<Consulta> = {
+                type: selectedEntity.type === "couple" ? "couple" : "individual",
+                date: getLocalDateString(),
+              };
+              if (selectedEntity.type === "patient") newApt.patient_id = selectedEntity.id;
+              if (selectedEntity.type === "couple") newApt.couple_id = selectedEntity.id;
+              setEditingApt(newApt);
+              setEditAptDialog(true);
+            }}>
               <Plus className="w-4 h-4 mr-2" /> Lançar Sessão Passada
             </Button>
           )}
@@ -620,14 +643,7 @@ export default function Prontuarios() {
 
               {/* Agenda tab */}
               <TabsContent value="agenda" className="space-y-6 mt-4">
-                {selectedEntity.type !== "patient" ? (
-                  <Card className="border-dashed">
-                    <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                      <CalendarDays className="w-12 h-12 text-muted-foreground mb-4" />
-                      <h3 className="font-semibold text-foreground">Agenda disponível para pacientes individuais</h3>
-                    </CardContent>
-                  </Card>
-                ) : aptsLoading ? (
+                {aptsLoading ? (
                   <div className="space-y-3">
                     {[1, 2, 3].map(i => <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />)}
                   </div>
@@ -642,7 +658,13 @@ export default function Prontuarios() {
                         <Button 
                           size="sm" 
                           variant="outline" 
-                          onClick={() => navigate(`/agenda?patientId=${selectedEntity.id}`)}
+                          onClick={() => {
+                            if (selectedEntity.type === "patient") {
+                              navigate(`/agenda?patientId=${selectedEntity.id}`);
+                            } else {
+                              navigate(`/agenda?coupleId=${selectedEntity.id}`);
+                            }
+                          }}
                           className="gap-1.5 h-8"
                         >
                           <Plus className="w-3.5 h-3.5" /> Agendar Sessão
@@ -696,22 +718,12 @@ export default function Prontuarios() {
 
               {/* Timeline tab */}
               <TabsContent value="timeline" className="mt-4">
-                {selectedEntity.type === "patient" ? (
-                  <PatientTimeline 
-                    patients={patients} 
-                    selectedPatientId={selectedEntity.id} 
-                    onSelectPatient={() => {}} 
-                    appointments={patientApts}
-                  />
-                ) : (
-                  <Card className="border-dashed">
-                    <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                      <TrendingUp className="w-12 h-12 text-muted-foreground mb-4" />
-                      <h3 className="font-semibold text-foreground">Evolução disponível para pacientes individuais</h3>
-                      <p className="text-muted-foreground text-sm mt-1">Selecione um paciente individual para ver a linha do tempo.</p>
-                    </CardContent>
-                  </Card>
-                )}
+                <PatientTimeline 
+                  patients={patients} 
+                  selectedPatientId={selectedEntity.id} 
+                  onSelectPatient={() => {}} 
+                  appointments={patientApts}
+                />
               </TabsContent>
 
               {/* Mood tab - only for patients */}
