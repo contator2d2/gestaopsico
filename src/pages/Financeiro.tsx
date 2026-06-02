@@ -58,6 +58,15 @@ export default function Financeiro() {
   });
   const [chargeData, setChargeData] = useState<{ charges: ConsolidatedCharge[]; totalAmount: number } | null>(null);
 
+  const summaryMonth = useMemo(() => {
+    const now = new Date();
+    let d = now;
+    if (period === "next_month") d = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    else if (period === "last_month") d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    else if (period === "this_month" || period === "all" || period === "open" || period === "overdue") d = now;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }, [period]);
+
   const queryParams = useMemo(() => {
     const p: Record<string, string> = { type: "receivable" };
     if (period !== "all") {
@@ -72,20 +81,6 @@ export default function Financeiro() {
     if (selectedPatientId) p.patientId = selectedPatientId;
     return p;
   }, [period, statusFilter, selectedPatientId, summaryMonth]);
-
-  const { data: accountsData, isLoading } = useQuery({
-    queryKey: ["accounts", queryParams],
-    queryFn: () => accountsApi.list(queryParams),
-  });
-
-  const summaryMonth = useMemo(() => {
-    const now = new Date();
-    let d = now;
-    if (period === "next_month") d = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    else if (period === "last_month") d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    else if (period === "this_month" || period === "all" || period === "open" || period === "overdue") d = now;
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  }, [period]);
 
   const { data: summary } = useQuery({
     queryKey: ["accounts-summary", summaryMonth],
