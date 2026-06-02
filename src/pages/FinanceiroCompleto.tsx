@@ -700,7 +700,7 @@ export default function FinanceiroCompleto() {
                       </div>
                     </CardContent>
                   </Card>
-                )).slice(1)} {/* Pula o atual se quiser ver só os futuros, ou mostra todos */}
+                )).slice(1)}
               </div>
             </CardContent>
           </Card>
