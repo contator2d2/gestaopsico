@@ -78,7 +78,9 @@ export default function Teleatendimento() {
   const [activeSession, setActiveSession] = useState<TelehealthSession | null>(null);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showConsentDialog, setShowConsentDialog] = useState(false);
-  const [newSessionData, setNewSessionData] = useState<{ patientId: string; meetingLink: string }>({ patientId: "", meetingLink: "" });
+  const [newSessionData, setNewSessionData] = useState<{ patientId: string; coupleId: string; meetingLink: string; sessionType: "individual" | "couple" }>({ patientId: "", coupleId: "", meetingLink: "", sessionType: "individual" });
+  const [patientSearchOpen, setPatientSearchOpen] = useState(false);
+  const [coupleSearchOpen, setCoupleSearchOpen] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [duration, setDuration] = useState(0);
