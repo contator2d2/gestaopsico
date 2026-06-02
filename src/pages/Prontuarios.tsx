@@ -293,10 +293,19 @@ export default function Prontuarios() {
 
   // Filter appointments for the selected patient
   const selectedPatientApts = useMemo(() => {
-    if (!selectedEntity || selectedEntity.type !== "patient") return { upcoming: [], past: [] };
+    if (!selectedEntity) return { upcoming: [], past: [] };
     const now = new Date();
     const todayStr = getLocalDateString(now);
-    const filtered = patientApts.filter((a: any) => a.patientId === selectedEntity.id || a.patient?.id === selectedEntity.id);
+    
+    // Filter based on entity type
+    const filtered = patientApts.filter((a: any) => {
+      if (selectedEntity.type === "patient") {
+        return a.patientId === selectedEntity.id || a.patient?.id === selectedEntity.id;
+      } else {
+        return a.coupleId === selectedEntity.id || a.couple_id === selectedEntity.id;
+      }
+    });
+
     const upcoming = filtered.filter((a: any) => {
       const aptDate = a.date?.split("T")[0];
       return aptDate >= todayStr && a.status !== "cancelled";
