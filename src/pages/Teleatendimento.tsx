@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { telehealthApi, TelehealthSession } from "@/lib/telehealthApi";
-import { pacientesApi, Patient, consultasApi } from "@/lib/api";
+import { pacientesApi, Patient, consultasApi, casaisApi, Casal } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,13 +18,16 @@ import {
   Upload, FileText, Brain, Trash2, Video, ExternalLink, Loader2, RefreshCw,
   Eye, Plus, ArrowLeft, Headphones, Monitor, Volume2, Info, Pause, Play,
   Paperclip, X, File, Image as ImageIcon, Copy, MessageSquare, Sparkles, Settings2,
-  FileSearch
+  FileSearch, Check, ChevronsUpDown, Users
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import StructuredSessionContent from "@/components/telehealth/StructuredSessionContent";
 import { useAiAgents, useAnalyzeText } from "@/hooks/useAi";
 
@@ -75,7 +78,9 @@ export default function Teleatendimento() {
   const [activeSession, setActiveSession] = useState<TelehealthSession | null>(null);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showConsentDialog, setShowConsentDialog] = useState(false);
-  const [newSessionData, setNewSessionData] = useState<{ patientId: string; meetingLink: string }>({ patientId: "", meetingLink: "" });
+  const [newSessionData, setNewSessionData] = useState<{ patientId: string; coupleId: string; meetingLink: string; sessionType: "individual" | "couple" }>({ patientId: "", coupleId: "", meetingLink: "", sessionType: "individual" });
+  const [patientSearchOpen, setPatientSearchOpen] = useState(false);
+  const [coupleSearchOpen, setCoupleSearchOpen] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -126,7 +131,7 @@ export default function Teleatendimento() {
     const appointmentId = searchParams.get("appointmentId");
     if (patientId && !autoCreating) {
       setAutoCreating(true);
-      setNewSessionData({ patientId, meetingLink: "" });
+      setNewSessionData({ patientId, coupleId: "", meetingLink: "", sessionType: "individual" });
       setSearchParams({}, { replace: true });
       telehealthApi.create({ patientId, appointmentId: appointmentId || undefined }).then((session) => {
         setActiveSession(session);
@@ -143,6 +148,11 @@ export default function Teleatendimento() {
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ["telehealth-sessions"],
     queryFn: () => telehealthApi.list()
+  });
+  
+  const { data: couples = [] } = useQuery({
+    queryKey: ["couples-list"],
+    queryFn: async () => { const r = await casaisApi.list(); return Array.isArray(r) ? r : []; }
   });
 
   const { data: patients = [] } = useQuery({
@@ -371,8 +381,14 @@ export default function Teleatendimento() {
   const handleNewSession = () => setShowConsentDialog(true);
   const handleConsentAccepted = () => { setShowConsentDialog(false); setShowNewDialog(true); };
   const handleCreateSession = () => {
-    if (!newSessionData.patientId) return toast.error("Selecione um paciente");
-    createMutation.mutate({ patientId: newSessionData.patientId, meetingLink: newSessionData.meetingLink || undefined });
+    if (newSessionData.sessionType === "individual" && !newSessionData.patientId) return toast.error("Selecione um paciente");
+    if (newSessionData.sessionType === "couple" && !newSessionData.coupleId) return toast.error("Selecione um casal");
+    
+    createMutation.mutate({ 
+      patientId: newSessionData.sessionType === "individual" ? newSessionData.patientId : undefined, 
+      coupleId: newSessionData.sessionType === "couple" ? newSessionData.coupleId : undefined,
+      meetingLink: newSessionData.meetingLink || undefined 
+    });
   };
 
   // Document handling
@@ -1084,21 +1100,124 @@ export default function Teleatendimento() {
 
         {/* New Session Dialog */}
         <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Nova Sessão de Teleatendimento</DialogTitle>
               <DialogDescription>Configure a sessão com captura de áudio segura</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-foreground">Paciente *</label>
-                <Select value={newSessionData.patientId} onValueChange={v => setNewSessionData(p => ({ ...p, patientId: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o paciente" /></SelectTrigger>
-                  <SelectContent>
-                    {patients.map((p: Patient) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-4 py-2">
+              <Tabs 
+                value={newSessionData.sessionType} 
+                onValueChange={(v) => setNewSessionData(p => ({ ...p, sessionType: v as "individual" | "couple" }))}
+                className="w-full"
+              >
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="individual">Individual</TabsTrigger>
+                  <TabsTrigger value="couple">Casal</TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {newSessionData.sessionType === "individual" ? (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Paciente *</label>
+                  <Popover open={patientSearchOpen} onOpenChange={setPatientSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={patientSearchOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {newSessionData.patientId
+                          ? patients.find((p: Patient) => p.id === newSessionData.patientId)?.name
+                          : "Pesquisar paciente..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                      <Command>
+                        <CommandInput placeholder="Digite o nome do paciente..." />
+                        <CommandList>
+                          <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
+                          <CommandGroup>
+                            {patients.map((p: Patient) => (
+                              <CommandItem
+                                key={p.id}
+                                value={p.name}
+                                onSelect={() => {
+                                  setNewSessionData(prev => ({ ...prev, patientId: p.id }));
+                                  setPatientSearchOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    newSessionData.patientId === p.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {p.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Casal *</label>
+                  <Popover open={coupleSearchOpen} onOpenChange={setCoupleSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={coupleSearchOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {newSessionData.coupleId
+                          ? couples.find((c: Casal) => c.id === newSessionData.coupleId)?.name
+                          : "Pesquisar casal..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                      <Command>
+                        <CommandInput placeholder="Digite o nome do casal..." />
+                        <CommandList>
+                          <CommandEmpty>Nenhum casal encontrado.</CommandEmpty>
+                          <CommandGroup>
+                            {couples.map((c: Casal) => (
+                              <CommandItem
+                                key={c.id}
+                                value={c.name}
+                                onSelect={() => {
+                                  setNewSessionData(prev => ({ ...prev, coupleId: c.id }));
+                                  setCoupleSearchOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    newSessionData.coupleId === c.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span>{c.name}</span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {c.patient1?.name} & {c.patient2?.name}
+                                  </span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+
               <div>
                 <label className="text-sm font-medium text-foreground">Link da Reunião (opcional)</label>
                 <Input placeholder="https://meet.google.com/... ou zoom.us/..."
