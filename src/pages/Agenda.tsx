@@ -371,7 +371,7 @@ export default function Agenda() {
     else setSelectedDate(prev => addMonths(prev, dir));
   };
 
-  const set = (field: string, value: string | number) =>
+  const set = (field: string, value: string | number | boolean) =>
     setForm(prev => ({ ...prev, [field]: value }));
 
   const openScheduleDialog = (date: Date, time?: string) => {
