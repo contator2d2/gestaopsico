@@ -67,6 +67,7 @@ export default function FinanceiroCompleto() {
   const [dateFilterStart, setDateFilterStart] = useState("");
   const [dateFilterEnd, setDateFilterEnd] = useState("");
   const [showDateFilter, setShowDateFilter] = useState(false);
+  const [statusTabFilter, setStatusTabFilter] = useState<string>("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: patients = [] } = usePatients();
