@@ -72,6 +72,50 @@ function validateAppointmentPayload(data) {
   return null;
 }
 
+function isOverlapping(time1, duration1, time2, duration2) {
+  const [h1, m1] = time1.split(':').map(Number);
+  const start1 = h1 * 60 + m1;
+  const end1 = start1 + duration1;
+
+  const [h2, m2] = time2.split(':').map(Number);
+  const start2 = h2 * 60 + m2;
+  const end2 = start2 + duration2;
+
+  return start1 < end2 && start2 < end1;
+}
+
+async function findConflicts(professionalId, date, time, duration, excludeId = null) {
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      professionalId,
+      date: new Date(date),
+      status: { not: 'cancelled' },
+      id: excludeId ? { not: excludeId } : undefined,
+    },
+  });
+
+  return appointments.filter(apt => isOverlapping(time, duration, apt.time, apt.duration));
+}
+
+function generateRecurringDates(startDate, frequency, durationMonths) {
+  const dates = [];
+  let current = new Date(startDate);
+  const endDate = new Date(startDate);
+  endDate.setMonth(endDate.getMonth() + durationMonths);
+
+  // We already have the first date from the original request
+  // So we start from the next one
+  const increment = frequency === 'weekly' ? 7 : 14;
+  
+  while (true) {
+    // Add increment to current date
+    current = new Date(current.getTime() + increment * 24 * 60 * 60 * 1000);
+    if (current > endDate) break;
+    dates.push(new Date(current));
+  }
+  return dates;
+}
+
 // GET /api/consultas
 router.get('/', async (req, res) => {
   try {
