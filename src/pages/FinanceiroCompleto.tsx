@@ -82,8 +82,11 @@ export default function FinanceiroCompleto() {
   // Accounts list per tab
   const accountType = tab === "payable" ? "payable" : "receivable";
   const { data: accountsData, isLoading: accLoading } = useQuery({
-    queryKey: ["accounts", accountType],
-    queryFn: () => accountsApi.list({ type: accountType }),
+    queryKey: ["accounts", accountType, currentMonth],
+    queryFn: () => accountsApi.list({ 
+      type: accountType,
+      period: currentMonth // Passando o mês selecionado para a API
+    }),
     enabled: tab === "receivable" || tab === "payable",
   });
 
