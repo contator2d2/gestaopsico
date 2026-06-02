@@ -606,6 +606,120 @@ export default function FinanceiroCompleto() {
           )}
         </TabsContent>
 
+        {/* Projection */}
+        <TabsContent value="projection" className="mt-4 space-y-4">
+          <Card className="border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-primary" />
+                Projeção Financeira (Próximos 3 Meses)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[400px] w-full mt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={projectionData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: 'currentColor', opacity: 0.6, fontSize: 12 }}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: 'currentColor', opacity: 0.6, fontSize: 12 }}
+                      tickFormatter={(value) => `R$ ${value}`}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--background))', 
+                        borderColor: 'hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
+                      formatter={(value: number) => [fmt(value), '']}
+                    />
+                    <Legend />
+                    <Line 
+                      type="monotone" 
+                      dataKey="receita" 
+                      name="Receita" 
+                      stroke="#10b981" 
+                      strokeWidth={3} 
+                      dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
+                      activeDot={{ r: 6 }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="despesa" 
+                      name="Despesa" 
+                      stroke="#ef4444" 
+                      strokeWidth={3} 
+                      dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
+                      activeDot={{ r: 6 }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="saldo" 
+                      name="Saldo (Fluxo)" 
+                      stroke="#3b82f6" 
+                      strokeWidth={2} 
+                      strokeDasharray="5 5"
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                {projectionData.map((d, i) => (
+                  <Card key={i} className={`border-none ${d.tipo === 'Realizado' ? 'bg-muted/50' : 'bg-primary/5'}`}>
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-semibold">{d.name}</span>
+                        <Badge variant={d.tipo === 'Realizado' ? 'outline' : 'default'} className="text-[10px] py-0">
+                          {d.tipo}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">Receita:</span>
+                          <span className="font-medium text-green-600">{fmt(d.receita)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">Despesa:</span>
+                          <span className="font-medium text-destructive">{fmt(d.despesa)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm font-bold border-t pt-1 mt-1">
+                          <span>Saldo:</span>
+                          <span className={d.saldo >= 0 ? 'text-blue-600' : 'text-destructive'}>
+                            {fmt(d.saldo)}
+                          </span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )).slice(1)} {/* Pula o atual se quiser ver só os futuros, ou mostra todos */}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-4 flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <TrendingUp className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Inteligência Financeira</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  As projeções acima consideram seus agendamentos recorrentes e despesas fixas cadastradas. 
+                  Mantenha suas recorrências atualizadas para uma precisão maior.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
         {/* Receivable / Payable tabs */}
         {["receivable", "payable"].map(t => (
           <TabsContent key={t} value={t} className="mt-4">
