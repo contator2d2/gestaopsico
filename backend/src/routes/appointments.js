@@ -72,6 +72,50 @@ function validateAppointmentPayload(data) {
   return null;
 }
 
+function isOverlapping(time1, duration1, time2, duration2) {
+  const [h1, m1] = time1.split(':').map(Number);
+  const start1 = h1 * 60 + m1;
+  const end1 = start1 + duration1;
+
+  const [h2, m2] = time2.split(':').map(Number);
+  const start2 = h2 * 60 + m2;
+  const end2 = start2 + duration2;
+
+  return start1 < end2 && start2 < end1;
+}
+
+async function findConflicts(professionalId, date, time, duration, excludeId = null) {
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      professionalId,
+      date: new Date(date),
+      status: { not: 'cancelled' },
+      id: excludeId ? { not: excludeId } : undefined,
+    },
+  });
+
+  return appointments.filter(apt => isOverlapping(time, duration, apt.time, apt.duration));
+}
+
+function generateRecurringDates(startDate, frequency, durationMonths) {
+  const dates = [];
+  let current = new Date(startDate);
+  const endDate = new Date(startDate);
+  endDate.setMonth(endDate.getMonth() + durationMonths);
+
+  // We already have the first date from the original request
+  // So we start from the next one
+  const increment = frequency === 'weekly' ? 7 : 14;
+  
+  while (true) {
+    // Add increment to current date
+    current = new Date(current.getTime() + increment * 24 * 60 * 60 * 1000);
+    if (current > endDate) break;
+    dates.push(new Date(current));
+  }
+  return dates;
+}
+
 // GET /api/consultas
 router.get('/', async (req, res) => {
   try {
@@ -132,6 +176,65 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: validationError });
     }
 
+    const { recurring, recurrenceFrequency, recurrenceDuration } = req.body;
+
+    // Check conflict for the primary appointment
+    const conflicts = await findConflicts(data.professionalId, data.date, data.time, data.duration);
+    if (conflicts.length > 0) {
+      return res.status(409).json({ 
+        error: 'Conflito de agenda', 
+        details: 'Já existe um agendamento para este horário.',
+        conflicts 
+      });
+    }
+
+    if (recurring && recurrenceFrequency && recurrenceDuration) {
+      const durationMonths = recurrenceDuration === '2m' ? 2 : 1;
+      const recurringDates = generateRecurringDates(data.date, recurrenceFrequency, durationMonths);
+      
+      const allConflicts = [];
+      for (const rDate of recurringDates) {
+        const dateStr = rDate.toISOString().split('T')[0];
+        const c = await findConflicts(data.professionalId, dateStr, data.time, data.duration);
+        if (c.length > 0) {
+          allConflicts.push({ date: dateStr, conflicts: c });
+        }
+      }
+
+      if (allConflicts.length > 0) {
+        return res.status(409).json({ 
+          error: 'Conflitos nas recorrências', 
+          details: 'Algumas datas da recorrência possuem conflitos.',
+          recurringConflicts: allConflicts 
+        });
+      }
+
+      // Create all in a transaction
+      const results = await prisma.$transaction(async (tx) => {
+        const first = await tx.appointment.create({
+          data,
+          include: {
+            patient: { select: { id: true, name: true } },
+            couple: { select: { id: true, name: true } }
+          }
+        });
+
+        const others = await Promise.all(recurringDates.map(rDate => 
+          tx.appointment.create({
+            data: { ...data, date: rDate },
+            include: {
+              patient: { select: { id: true, name: true } },
+              couple: { select: { id: true, name: true } }
+            }
+          })
+        ));
+
+        return [first, ...others];
+      });
+
+      return res.status(201).json(results[0]); // Return the first one as usual
+    }
+
     const appointment = await prisma.appointment.create({
       data,
       include: {
@@ -153,6 +256,18 @@ router.put('/:id', async (req, res) => {
     const validationError = validateAppointmentPayload({ ...data, type: data.type || 'individual' });
     if (validationError && validationError !== 'Paciente é obrigatório') {
       return res.status(400).json({ error: validationError });
+    }
+
+    // Check conflict (excluding current appointment)
+    if (data.date && data.time && data.duration) {
+      const conflicts = await findConflicts(data.professionalId || req.userId, data.date, data.time, data.duration, req.params.id);
+      if (conflicts.length > 0) {
+        return res.status(409).json({ 
+          error: 'Conflito de agenda', 
+          details: 'Já existe um agendamento para este horário.',
+          conflicts 
+        });
+      }
     }
 
     const appointment = await prisma.appointment.updateMany({

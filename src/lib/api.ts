@@ -276,6 +276,9 @@ export interface Consulta {
   attended?: boolean;
   notes?: string;
   patient?: Patient;
+  recurring?: boolean;
+  recurrenceFrequency?: 'weekly' | 'biweekly';
+  recurrenceDuration?: '1m' | '2m';
 }
 
 export interface Casal {

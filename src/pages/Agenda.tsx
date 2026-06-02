@@ -78,6 +78,7 @@ const emptyConsulta: Partial<Consulta> = {
   patient_id: "", type: "individual", date: "", time: "",
   duration: 50, value: 0, status: "scheduled",
   payment_status: "pending", mode: "in_person", notes: "",
+  recurring: false, recurrenceFrequency: "weekly", recurrenceDuration: "1m",
 };
 
 const ALL_HOURS = Array.from({ length: 17 }, (_, i) => i + 6);
@@ -147,7 +148,11 @@ export default function Agenda() {
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
-  const [form, setForm] = useState<Partial<Consulta>>({ ...emptyConsulta });
+  const [form, setForm] = useState<Partial<Consulta> & { 
+    recurring?: boolean; 
+    recurrenceFrequency?: 'weekly' | 'biweekly'; 
+    recurrenceDuration?: '1m' | '2m';
+  }>({ ...emptyConsulta, recurring: false, recurrenceFrequency: 'weekly', recurrenceDuration: '1m' });
   const [selectedProfessional, setSelectedProfessional] = useState("");
 
   useEffect(() => {
@@ -254,7 +259,14 @@ export default function Agenda() {
       setDialogOpen(false);
       setForm({ ...emptyConsulta });
     },
-    onError: (err: Error) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+    onError: (err: any) => {
+      const details = err.details || err.message;
+      toast({ 
+        title: err.message || "Erro", 
+        description: details, 
+        variant: "destructive" 
+      });
+    },
   });
 
   const attendMutation = useMutation({
@@ -360,7 +372,7 @@ export default function Agenda() {
     else setSelectedDate(prev => addMonths(prev, dir));
   };
 
-  const set = (field: string, value: string | number) =>
+  const set = (field: string, value: string | number | boolean) =>
     setForm(prev => ({ ...prev, [field]: value }));
 
   const openScheduleDialog = (date: Date, time?: string) => {
@@ -374,6 +386,9 @@ export default function Agenda() {
       value: 0,
       mode: "in_person",
       type: "individual",
+      recurring: false,
+      recurrenceFrequency: "weekly",
+      recurrenceDuration: "1m",
     });
     if (selectedProfessional === "all") {
       setSelectedProfessional("");
@@ -721,6 +736,42 @@ export default function Agenda() {
             <div>
               <Label>Observações</Label>
               <Textarea value={form.notes || ""} onChange={e => set("notes", e.target.value)} placeholder="Notas sobre a consulta..." />
+            </div>
+
+            <div className="pt-4 border-t space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="recurring" 
+                  checked={form.recurring} 
+                  onCheckedChange={(checked) => set("recurring" as any, checked === true)} 
+                />
+                <Label htmlFor="recurring" className="font-semibold cursor-pointer">Agendamento Recorrente</Label>
+              </div>
+
+              {form.recurring && (
+                <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <div>
+                    <Label>Frequência</Label>
+                    <Select value={form.recurrenceFrequency || "weekly"} onValueChange={v => set("recurrenceFrequency" as any, v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="weekly">Semanal</SelectItem>
+                        <SelectItem value="biweekly">A cada 15 dias</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Período</Label>
+                    <Select value={form.recurrenceDuration || "1m"} onValueChange={v => set("recurrenceDuration" as any, v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1m">Por 1 mês</SelectItem>
+                        <SelectItem value="2m">Por 2 meses</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
