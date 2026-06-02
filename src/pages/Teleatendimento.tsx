@@ -131,7 +131,7 @@ export default function Teleatendimento() {
     const appointmentId = searchParams.get("appointmentId");
     if (patientId && !autoCreating) {
       setAutoCreating(true);
-      setNewSessionData({ patientId, meetingLink: "" });
+      setNewSessionData({ patientId, coupleId: "", meetingLink: "", sessionType: "individual" });
       setSearchParams({}, { replace: true });
       telehealthApi.create({ patientId, appointmentId: appointmentId || undefined }).then((session) => {
         setActiveSession(session);
