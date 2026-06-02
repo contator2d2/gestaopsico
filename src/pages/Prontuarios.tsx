@@ -643,14 +643,7 @@ export default function Prontuarios() {
 
               {/* Agenda tab */}
               <TabsContent value="agenda" className="space-y-6 mt-4">
-                {selectedEntity.type !== "patient" ? (
-                  <Card className="border-dashed">
-                    <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                      <CalendarDays className="w-12 h-12 text-muted-foreground mb-4" />
-                      <h3 className="font-semibold text-foreground">Agenda disponível para pacientes individuais</h3>
-                    </CardContent>
-                  </Card>
-                ) : aptsLoading ? (
+                {aptsLoading ? (
                   <div className="space-y-3">
                     {[1, 2, 3].map(i => <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />)}
                   </div>
@@ -665,7 +658,13 @@ export default function Prontuarios() {
                         <Button 
                           size="sm" 
                           variant="outline" 
-                          onClick={() => navigate(`/agenda?patientId=${selectedEntity.id}`)}
+                          onClick={() => {
+                            if (selectedEntity.type === "patient") {
+                              navigate(`/agenda?patientId=${selectedEntity.id}`);
+                            } else {
+                              navigate(`/agenda?coupleId=${selectedEntity.id}`);
+                            }
+                          }}
                           className="gap-1.5 h-8"
                         >
                           <Plus className="w-3.5 h-3.5" /> Agendar Sessão
