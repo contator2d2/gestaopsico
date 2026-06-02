@@ -31,8 +31,20 @@ import StatCard from "@/components/StatCard";
 import { accountsApi, type Account, type AccountsSummary } from "@/lib/portalApi";
 import { invoicesApi, pacientesApi, importApi, type Patient } from "@/lib/api";
 import { usePatients } from "@/hooks/usePatients";
-import { format } from "date-fns";
+import { format, addMonths, startOfMonth, endOfMonth, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  Legend,
+  AreaChart,
+  Area
+} from "recharts";
 
 const statusConfig: Record<string, { label: string; class: string; icon: typeof CheckCircle }> = {
   pending: { label: "Pendente", class: "bg-warning/10 text-warning", icon: Clock },
