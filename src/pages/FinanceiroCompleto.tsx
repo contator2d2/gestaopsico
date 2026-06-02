@@ -400,7 +400,7 @@ export default function FinanceiroCompleto() {
       return acc;
     }, {} as Record<string, any>);
 
-    // Converter para array e ordenar por data (presumindo que as contas do mês já venham ordenadas ou sejam poucas)
+    // Converter para array e ordenar por data
     return Object.values(grouped).sort((a: any, b: any) => {
       const [dayA, monthA] = a.name.split("/").map(Number);
       const [dayB, monthB] = b.name.split("/").map(Number);
@@ -408,36 +408,42 @@ export default function FinanceiroCompleto() {
     });
   }, [report]);
 
-  // Prepara dados para os gráficos de projeção
+  // Prepara dados para os gráficos de projeção acumulada
   const projectionData = useMemo(() => {
     if (!summaryData && !report) return [];
 
     const data = [];
     const baseMonth = new Date(currentMonth + "-01T12:00:00");
     
+    // Saldo inicial pode vir de meses anteriores ou ser 0
+    let cumulativeBalance = 0;
+    
     // Pegar 4 meses: atual + 3 futuros
     for (let i = 0; i < 4; i++) {
       const monthDate = addMonths(baseMonth, i);
-      const monthKey = format(monthDate, "yyyy-MM");
       const isFuture = i > 0;
       
-      let revenue = 0;
-      let expenses = 0;
+      let monthlyRevenue = 0;
+      let monthlyExpenses = 0;
 
       if (i === 0) {
-        revenue = summaryData?.totalReceivable ?? report?.revenue?.total ?? 0;
-        expenses = summaryData?.totalPayable ?? report?.expenses?.total ?? 0;
+        monthlyRevenue = summaryData?.totalReceivable ?? report?.revenue?.total ?? 0;
+        monthlyExpenses = summaryData?.totalPayable ?? report?.expenses?.total ?? 0;
       } else {
+        // Estimativa: Receita futura reportada ou baseada no atual
         const futureRevenueTotal = report?.futureRevenue ?? (summaryData?.totalReceivable ?? 0) * 2;
-        revenue = (futureRevenueTotal / 3) * (1 + (i * 0.05));
-        expenses = (summaryData?.totalPayable ?? report?.expenses?.total ?? 0) * (1 + (i * 0.02));
+        monthlyRevenue = (futureRevenueTotal / 3) * (1 + (i * 0.03));
+        monthlyExpenses = (summaryData?.totalPayable ?? report?.expenses?.total ?? 0) * (1 + (i * 0.02));
       }
+
+      cumulativeBalance += (monthlyRevenue - monthlyExpenses);
 
       data.push({
         name: format(monthDate, "MMM/yy", { locale: ptBR }),
-        receita: revenue,
-        despesa: expenses,
-        saldo: revenue - expenses,
+        receita: monthlyRevenue,
+        despesa: monthlyExpenses,
+        saldo: monthlyRevenue - monthlyExpenses,
+        acumulado: cumulativeBalance,
         tipo: isFuture ? "Projeção" : "Realizado"
       });
     }
