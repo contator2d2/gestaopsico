@@ -77,7 +77,13 @@ export default function PatientTimeline({ patients, selectedPatientId, onSelectP
     } finally { setAnalysisLoading(false); }
   };
 
-  const patientApts = appointments.filter(a => a.patientId === selectedPatientId || a.patient_id === selectedPatientId || (a.patient?.id === selectedPatientId));
+  const patientApts = appointments.filter(a => 
+    a.patientId === selectedPatientId || 
+    a.patient_id === selectedPatientId || 
+    (a.patient?.id === selectedPatientId) ||
+    a.coupleId === selectedPatientId ||
+    a.couple_id === selectedPatientId
+  );
   
   const upcomingApts = patientApts.filter(a => {
     const aptDate = new Date(a.date);
