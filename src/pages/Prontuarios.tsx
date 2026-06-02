@@ -99,11 +99,16 @@ export default function Prontuarios() {
     enabled: isCreateOpen,
   });
 
-  // Appointments for the selected patient (detail view)
+  // Appointments for the selected entity (detail view)
   const { data: patientApts = [], isLoading: aptsLoading } = useQuery<Consulta[]>({
     queryKey: ["patient-appointments", selectedEntity?.id],
-    queryFn: () => consultasApi.list({ patientId: selectedEntity?.id || "" }),
-    enabled: !!selectedEntity && selectedEntity.type === "patient",
+    queryFn: () => {
+      if (selectedEntity?.type === "couple") {
+        return consultasApi.list({ coupleId: selectedEntity.id });
+      }
+      return consultasApi.list({ patientId: selectedEntity?.id || "" });
+    },
+    enabled: !!selectedEntity,
   });
 
   const [editAptDialog, setEditAptDialog] = useState(false);
