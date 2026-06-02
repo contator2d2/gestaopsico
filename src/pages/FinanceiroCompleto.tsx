@@ -553,7 +553,20 @@ export default function FinanceiroCompleto() {
         {/* Receivable / Payable tabs */}
         {["receivable", "payable"].map(t => (
           <TabsContent key={t} value={t} className="mt-4">
-            <div className="flex justify-end mb-3">
+            <div className="flex justify-between items-center mb-3 gap-2 flex-wrap">
+              <Select value={statusTabFilter} onValueChange={setStatusTabFilter}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <Filter className="w-3.5 h-3.5 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos status</SelectItem>
+                  <SelectItem value="pending">Pendente</SelectItem>
+                  <SelectItem value="paid">Pago</SelectItem>
+                  <SelectItem value="overdue">Vencido</SelectItem>
+                  <SelectItem value="cancelled">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
               <Button size="sm" onClick={() => openNew(t as "receivable" | "payable")}>
                 <Plus className="w-4 h-4 mr-2" />Nova {t === "receivable" ? "Receita" : "Despesa"}
               </Button>
