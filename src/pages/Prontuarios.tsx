@@ -348,8 +348,17 @@ export default function Prontuarios() {
           </div>
         </div>
         <div className="flex gap-2">
-          {selectedEntity?.type === "patient" && (
-            <Button variant="outline" onClick={() => setEditAptDialog(true)}>
+          {(selectedEntity?.type === "patient" || selectedEntity?.type === "couple") && (
+            <Button variant="outline" onClick={() => {
+              const newApt: Partial<Consulta> = {
+                type: selectedEntity.type === "couple" ? "couple" : "individual",
+                date: getLocalDateString(),
+              };
+              if (selectedEntity.type === "patient") newApt.patient_id = selectedEntity.id;
+              if (selectedEntity.type === "couple") newApt.couple_id = selectedEntity.id;
+              setEditingApt(newApt);
+              setEditAptDialog(true);
+            }}>
               <Plus className="w-4 h-4 mr-2" /> Lançar Sessão Passada
             </Button>
           )}
