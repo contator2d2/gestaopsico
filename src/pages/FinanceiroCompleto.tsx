@@ -383,6 +383,31 @@ export default function FinanceiroCompleto() {
     toast({ title: "Relatório exportado!", description: `relatorio_financeiro_${currentMonth}.txt` });
   };
 
+  // Prepara dados para os gráficos de evolução por período
+  const periodData = useMemo(() => {
+    if (!report?.accounts) return [];
+
+    // Agrupar contas por data
+    const grouped = (report.accounts as any[]).reduce((acc, curr) => {
+      const date = format(new Date(curr.dueDate || new Date()), "dd/MM", { locale: ptBR });
+      if (!acc[date]) acc[date] = { name: date, receita: 0, despesa: 0 };
+      
+      if (curr.type === "receivable") {
+        acc[date].receita += Number(curr.value);
+      } else {
+        acc[date].despesa += Number(curr.value);
+      }
+      return acc;
+    }, {} as Record<string, any>);
+
+    // Converter para array e ordenar por data (presumindo que as contas do mês já venham ordenadas ou sejam poucas)
+    return Object.values(grouped).sort((a: any, b: any) => {
+      const [dayA, monthA] = a.name.split("/").map(Number);
+      const [dayB, monthB] = b.name.split("/").map(Number);
+      return dayA - dayB;
+    });
+  }, [report]);
+
   // Prepara dados para os gráficos de projeção
   const projectionData = useMemo(() => {
     if (!summaryData && !report) return [];
@@ -396,9 +421,6 @@ export default function FinanceiroCompleto() {
       const monthKey = format(monthDate, "yyyy-MM");
       const isFuture = i > 0;
       
-      // Simulamos ou buscamos dados
-      // Para o mês atual (i=0), usamos dados reais se disponíveis
-      // Para meses futuros, estimamos baseado na receita futura reportada ou média
       let revenue = 0;
       let expenses = 0;
 
@@ -406,10 +428,8 @@ export default function FinanceiroCompleto() {
         revenue = summaryData?.totalReceivable ?? report?.revenue?.total ?? 0;
         expenses = summaryData?.totalPayable ?? report?.expenses?.total ?? 0;
       } else {
-        // Estimativa simples: Dilui a receita futura reportada nos meses seguintes
-        // ou usa uma média baseada no mês atual para projeção
         const futureRevenueTotal = report?.futureRevenue ?? (summaryData?.totalReceivable ?? 0) * 2;
-        revenue = (futureRevenueTotal / 3) * (1 + (i * 0.05)); // Pequeno incremento simulado
+        revenue = (futureRevenueTotal / 3) * (1 + (i * 0.05));
         expenses = (summaryData?.totalPayable ?? report?.expenses?.total ?? 0) * (1 + (i * 0.02));
       }
 
