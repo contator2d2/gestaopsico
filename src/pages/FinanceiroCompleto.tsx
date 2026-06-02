@@ -383,6 +383,47 @@ export default function FinanceiroCompleto() {
     toast({ title: "Relatório exportado!", description: `relatorio_financeiro_${currentMonth}.txt` });
   };
 
+  // Prepara dados para os gráficos de projeção
+  const projectionData = useMemo(() => {
+    if (!summaryData && !report) return [];
+
+    const data = [];
+    const baseMonth = new Date(currentMonth + "-01T12:00:00");
+    
+    // Pegar 4 meses: atual + 3 futuros
+    for (let i = 0; i < 4; i++) {
+      const monthDate = addMonths(baseMonth, i);
+      const monthKey = format(monthDate, "yyyy-MM");
+      const isFuture = i > 0;
+      
+      // Simulamos ou buscamos dados
+      // Para o mês atual (i=0), usamos dados reais se disponíveis
+      // Para meses futuros, estimamos baseado na receita futura reportada ou média
+      let revenue = 0;
+      let expenses = 0;
+
+      if (i === 0) {
+        revenue = summaryData?.totalReceivable ?? report?.revenue?.total ?? 0;
+        expenses = summaryData?.totalPayable ?? report?.expenses?.total ?? 0;
+      } else {
+        // Estimativa simples: Dilui a receita futura reportada nos meses seguintes
+        // ou usa uma média baseada no mês atual para projeção
+        const futureRevenueTotal = report?.futureRevenue ?? (summaryData?.totalReceivable ?? 0) * 2;
+        revenue = (futureRevenueTotal / 3) * (1 + (i * 0.05)); // Pequeno incremento simulado
+        expenses = (summaryData?.totalPayable ?? report?.expenses?.total ?? 0) * (1 + (i * 0.02));
+      }
+
+      data.push({
+        name: format(monthDate, "MMM/yy", { locale: ptBR }),
+        receita: revenue,
+        despesa: expenses,
+        saldo: revenue - expenses,
+        tipo: isFuture ? "Projeção" : "Realizado"
+      });
+    }
+    return data;
+  }, [currentMonth, summaryData, report]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
