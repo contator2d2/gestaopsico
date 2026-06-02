@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { telehealthApi, TelehealthSession } from "@/lib/telehealthApi";
-import { pacientesApi, Patient, consultasApi } from "@/lib/api";
+import { pacientesApi, Patient, consultasApi, casaisApi, Casal } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,7 @@ import {
   Upload, FileText, Brain, Trash2, Video, ExternalLink, Loader2, RefreshCw,
   Eye, Plus, ArrowLeft, Headphones, Monitor, Volume2, Info, Pause, Play,
   Paperclip, X, File, Image as ImageIcon, Copy, MessageSquare, Sparkles, Settings2,
-  FileSearch
+  FileSearch, Check, ChevronsUpDown, Users
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
