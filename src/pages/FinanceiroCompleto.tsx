@@ -748,29 +748,27 @@ export default function FinanceiroCompleto() {
                     <Line 
                       type="monotone" 
                       dataKey="receita" 
-                      name="Receita" 
+                      name="Receita Mensal" 
                       stroke="#10b981" 
-                      strokeWidth={3} 
-                      dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
-                      activeDot={{ r: 6 }}
+                      strokeWidth={2} 
+                      dot={{ r: 4, strokeWidth: 1, fill: '#fff' }}
                     />
                     <Line 
                       type="monotone" 
                       dataKey="despesa" 
-                      name="Despesa" 
+                      name="Despesa Mensal" 
                       stroke="#ef4444" 
-                      strokeWidth={3} 
-                      dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
-                      activeDot={{ r: 6 }}
+                      strokeWidth={2} 
+                      dot={{ r: 4, strokeWidth: 1, fill: '#fff' }}
                     />
                     <Line 
                       type="monotone" 
-                      dataKey="saldo" 
-                      name="Saldo (Fluxo)" 
+                      dataKey="acumulado" 
+                      name="Saldo Acumulado" 
                       stroke="#3b82f6" 
-                      strokeWidth={2} 
-                      strokeDasharray="5 5"
-                      dot={false}
+                      strokeWidth={4} 
+                      dot={{ r: 6, strokeWidth: 2, fill: '#fff' }}
+                      activeDot={{ r: 8 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -796,9 +794,15 @@ export default function FinanceiroCompleto() {
                           <span className="font-medium text-destructive">{fmt(d.despesa)}</span>
                         </div>
                         <div className="flex justify-between text-sm font-bold border-t pt-1 mt-1">
-                          <span>Saldo:</span>
+                          <span>Saldo Mês:</span>
                           <span className={d.saldo >= 0 ? 'text-blue-600' : 'text-destructive'}>
                             {fmt(d.saldo)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm font-black mt-1 bg-primary/10 px-2 py-1 rounded">
+                          <span>Acumulado:</span>
+                          <span className={d.acumulado >= 0 ? 'text-primary' : 'text-destructive'}>
+                            {fmt(d.acumulado)}
                           </span>
                         </div>
                       </div>
