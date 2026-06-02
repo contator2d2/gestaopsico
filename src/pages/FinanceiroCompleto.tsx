@@ -542,6 +542,9 @@ export default function FinanceiroCompleto() {
           <TabsTrigger value="overview" className="gap-2">
             <DollarSign className="w-4 h-4" />Visão Geral
           </TabsTrigger>
+          <TabsTrigger value="projection" className="gap-2">
+            <TrendingUp className="w-4 h-4" />Projeção
+          </TabsTrigger>
           <TabsTrigger value="receivable" className="gap-2">
             <ArrowUpRight className="w-4 h-4" />A Receber
           </TabsTrigger>
