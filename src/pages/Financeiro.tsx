@@ -58,19 +58,6 @@ export default function Financeiro() {
   });
   const [chargeData, setChargeData] = useState<{ charges: ConsolidatedCharge[]; totalAmount: number } | null>(null);
 
-  const queryParams = useMemo(() => {
-    const p: Record<string, string> = { type: "receivable" };
-    if (period !== "all") p.period = period;
-    if (statusFilter !== "all") p.status = statusFilter;
-    if (selectedPatientId) p.patientId = selectedPatientId;
-    return p;
-  }, [period, statusFilter, selectedPatientId]);
-
-  const { data: accountsData, isLoading } = useQuery({
-    queryKey: ["accounts", queryParams],
-    queryFn: () => accountsApi.list(queryParams),
-  });
-
   const summaryMonth = useMemo(() => {
     const now = new Date();
     let d = now;
@@ -79,6 +66,26 @@ export default function Financeiro() {
     else if (period === "this_month" || period === "all" || period === "open" || period === "overdue") d = now;
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   }, [period]);
+
+  const queryParams = useMemo(() => {
+    const p: Record<string, string> = { type: "receivable" };
+    if (period !== "all") {
+      // Se for um período predefinido que corresponde a um mês, passamos o summaryMonth
+      if (["this_month", "next_month", "last_month"].includes(period)) {
+        p.period = summaryMonth;
+      } else {
+        p.period = period;
+      }
+    }
+    if (statusFilter !== "all") p.status = statusFilter;
+    if (selectedPatientId) p.patientId = selectedPatientId;
+    return p;
+  }, [period, statusFilter, selectedPatientId, summaryMonth]);
+
+  const { data: accountsData, isLoading } = useQuery({
+    queryKey: ["accounts", queryParams],
+    queryFn: () => accountsApi.list(queryParams),
+  });
 
   const { data: summary } = useQuery({
     queryKey: ["accounts-summary", summaryMonth],

@@ -79,11 +79,20 @@ export default function FinanceiroCompleto() {
     retry: 1,
   });
 
+  // Summary stats based on current month
+  const { data: summaryData } = useQuery({
+    queryKey: ["accounts-summary", currentMonth],
+    queryFn: () => accountsApi.summary(currentMonth),
+  });
+
   // Accounts list per tab
   const accountType = tab === "payable" ? "payable" : "receivable";
   const { data: accountsData, isLoading: accLoading } = useQuery({
-    queryKey: ["accounts", accountType],
-    queryFn: () => accountsApi.list({ type: accountType }),
+    queryKey: ["accounts", accountType, currentMonth],
+    queryFn: () => accountsApi.list({ 
+      type: accountType,
+      period: currentMonth // Passando o mês selecionado para a API
+    }),
     enabled: tab === "receivable" || tab === "payable",
   });
 
@@ -433,11 +442,41 @@ export default function FinanceiroCompleto() {
           Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
         ) : (
           <>
-            <StatCard icon={ArrowUpRight} label="Receita do Mês" value={fmt(report?.revenue?.total ?? 0)} change={`${fmt(report?.revenue?.received ?? 0)} recebido`} changeType="positive" />
-            <StatCard icon={ArrowDownRight} label="Despesas" value={fmt(report?.expenses?.total ?? 0)} change={`${fmt(report?.expenses?.paid ?? 0)} pago`} changeType="negative" />
-            <StatCard icon={Wallet} label="Fluxo de Caixa" value={fmt(report?.cashFlow ?? 0)} changeType={(report?.cashFlow ?? 0) >= 0 ? "positive" : "negative"} change="Entradas - Saídas" />
-            <StatCard icon={TrendingUp} label="Receita Futura" value={fmt(report?.futureRevenue ?? 0)} change="Próximos 3 meses" changeType="positive" />
-            <StatCard icon={AlertCircle} label="Vencido" value={fmt(report?.revenue?.overdue ?? 0)} change={`${fmt(report?.revenue?.pending ?? 0)} pendente`} changeType="negative" />
+            <StatCard 
+              icon={ArrowUpRight} 
+              label="Receita do Mês" 
+              value={fmt(summaryData?.totalReceivable ?? report?.revenue?.total ?? 0)} 
+              change={`${fmt(summaryData?.receivedAmount ?? report?.revenue?.received ?? 0)} recebido`} 
+              changeType="positive" 
+            />
+            <StatCard 
+              icon={ArrowDownRight} 
+              label="Despesas" 
+              value={fmt(summaryData?.totalPayable ?? report?.expenses?.total ?? 0)} 
+              change={`${fmt(summaryData?.paidAmount ?? report?.expenses?.paid ?? 0)} pago`} 
+              changeType="negative" 
+            />
+            <StatCard 
+              icon={Wallet} 
+              label="Fluxo de Caixa" 
+              value={fmt(summaryData?.cashFlow ?? report?.cashFlow ?? 0)} 
+              changeType={(summaryData?.cashFlow ?? report?.cashFlow ?? 0) >= 0 ? "positive" : "negative"} 
+              change="Entradas - Saídas" 
+            />
+            <StatCard 
+              icon={TrendingUp} 
+              label="Receita Futura" 
+              value={fmt(report?.futureRevenue ?? 0)} 
+              change="Próximos 3 meses" 
+              changeType="positive" 
+            />
+            <StatCard 
+              icon={AlertCircle} 
+              label="Vencido" 
+              value={fmt(summaryData?.overdueReceivable ?? report?.revenue?.overdue ?? 0)} 
+              change={`${fmt(summaryData?.pendingReceivable ?? report?.revenue?.pending ?? 0)} pendente`} 
+              changeType="negative" 
+            />
           </>
         )}
       </div>
