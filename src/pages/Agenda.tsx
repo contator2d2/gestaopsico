@@ -78,6 +78,7 @@ const emptyConsulta: Partial<Consulta> = {
   patient_id: "", type: "individual", date: "", time: "",
   duration: 50, value: 0, status: "scheduled",
   payment_status: "pending", mode: "in_person", notes: "",
+  recurring: false, recurrenceFrequency: "weekly", recurrenceDuration: "1m",
 };
 
 const ALL_HOURS = Array.from({ length: 17 }, (_, i) => i + 6);
