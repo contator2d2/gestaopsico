@@ -79,6 +79,12 @@ export default function FinanceiroCompleto() {
     retry: 1,
   });
 
+  // Summary stats based on current month
+  const { data: summaryData } = useQuery({
+    queryKey: ["accounts-summary", currentMonth],
+    queryFn: () => accountsApi.summary(currentMonth),
+  });
+
   // Accounts list per tab
   const accountType = tab === "payable" ? "payable" : "receivable";
   const { data: accountsData, isLoading: accLoading } = useQuery({
