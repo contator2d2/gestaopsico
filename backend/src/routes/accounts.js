@@ -18,12 +18,17 @@ router.get('/', async (req, res) => {
     if (category) where.category = category;
     if (patientId) where.patientId = patientId;
 
-    // Period shortcuts: this_month, next_month, last_month, open, overdue
+    // Period shortcuts: this_month, next_month, last_month, open, overdue, ou YYYY-MM
     if (period) {
       const now = new Date();
       const y = now.getFullYear();
       const m = now.getMonth();
-      if (period === 'this_month') {
+      const ymMatch = /^(\d{4})-(\d{1,2})$/.exec(period);
+      if (ymMatch) {
+        const yy = parseInt(ymMatch[1], 10);
+        const mm = parseInt(ymMatch[2], 10) - 1;
+        where.dueDate = { gte: new Date(yy, mm, 1), lte: new Date(yy, mm + 1, 0, 23, 59, 59) };
+      } else if (period === 'this_month') {
         where.dueDate = { gte: new Date(y, m, 1), lte: new Date(y, m + 1, 0, 23, 59, 59) };
       } else if (period === 'next_month') {
         where.dueDate = { gte: new Date(y, m + 1, 1), lte: new Date(y, m + 2, 0, 23, 59, 59) };

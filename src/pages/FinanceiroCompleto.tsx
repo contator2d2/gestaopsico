@@ -67,6 +67,7 @@ export default function FinanceiroCompleto() {
   const [dateFilterStart, setDateFilterStart] = useState("");
   const [dateFilterEnd, setDateFilterEnd] = useState("");
   const [showDateFilter, setShowDateFilter] = useState(false);
+  const [statusTabFilter, setStatusTabFilter] = useState<string>("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: patients = [] } = usePatients();
@@ -88,10 +89,11 @@ export default function FinanceiroCompleto() {
   // Accounts list per tab
   const accountType = tab === "payable" ? "payable" : "receivable";
   const { data: accountsData, isLoading: accLoading } = useQuery({
-    queryKey: ["accounts", accountType, currentMonth],
-    queryFn: () => accountsApi.list({ 
+    queryKey: ["accounts", accountType, currentMonth, statusTabFilter],
+    queryFn: () => accountsApi.list({
       type: accountType,
-      period: currentMonth // Passando o mês selecionado para a API
+      period: currentMonth,
+      ...(statusTabFilter !== "all" ? { status: statusTabFilter } : {}),
     }),
     enabled: tab === "receivable" || tab === "payable",
   });
@@ -551,7 +553,20 @@ export default function FinanceiroCompleto() {
         {/* Receivable / Payable tabs */}
         {["receivable", "payable"].map(t => (
           <TabsContent key={t} value={t} className="mt-4">
-            <div className="flex justify-end mb-3">
+            <div className="flex justify-between items-center mb-3 gap-2 flex-wrap">
+              <Select value={statusTabFilter} onValueChange={setStatusTabFilter}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <Filter className="w-3.5 h-3.5 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos status</SelectItem>
+                  <SelectItem value="pending">Pendente</SelectItem>
+                  <SelectItem value="paid">Pago</SelectItem>
+                  <SelectItem value="overdue">Vencido</SelectItem>
+                  <SelectItem value="cancelled">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
               <Button size="sm" onClick={() => openNew(t as "receivable" | "payable")}>
                 <Plus className="w-4 h-4 mr-2" />Nova {t === "receivable" ? "Receita" : "Despesa"}
               </Button>
