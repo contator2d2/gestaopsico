@@ -719,22 +719,12 @@ export default function Prontuarios() {
 
               {/* Timeline tab */}
               <TabsContent value="timeline" className="mt-4">
-                {selectedEntity.type === "patient" ? (
-                  <PatientTimeline 
-                    patients={patients} 
-                    selectedPatientId={selectedEntity.id} 
-                    onSelectPatient={() => {}} 
-                    appointments={patientApts}
-                  />
-                ) : (
-                  <Card className="border-dashed">
-                    <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                      <TrendingUp className="w-12 h-12 text-muted-foreground mb-4" />
-                      <h3 className="font-semibold text-foreground">Evolução disponível para pacientes individuais</h3>
-                      <p className="text-muted-foreground text-sm mt-1">Selecione um paciente individual para ver a linha do tempo.</p>
-                    </CardContent>
-                  </Card>
-                )}
+                <PatientTimeline 
+                  patients={patients} 
+                  selectedPatientId={selectedEntity.id} 
+                  onSelectPatient={() => {}} 
+                  appointments={patientApts}
+                />
               </TabsContent>
 
               {/* Mood tab - only for patients */}
