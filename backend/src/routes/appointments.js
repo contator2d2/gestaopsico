@@ -258,6 +258,18 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ error: validationError });
     }
 
+    // Check conflict (excluding current appointment)
+    if (data.date && data.time && data.duration) {
+      const conflicts = await findConflicts(data.professionalId || req.userId, data.date, data.time, data.duration, req.params.id);
+      if (conflicts.length > 0) {
+        return res.status(409).json({ 
+          error: 'Conflito de agenda', 
+          details: 'Já existe um agendamento para este horário.',
+          conflicts 
+        });
+      }
+    }
+
     const appointment = await prisma.appointment.updateMany({
       where: { id: req.params.id, professionalId: req.userId },
       data
