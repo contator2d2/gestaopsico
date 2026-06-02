@@ -147,7 +147,11 @@ export default function Agenda() {
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
-  const [form, setForm] = useState<Partial<Consulta>>({ ...emptyConsulta });
+  const [form, setForm] = useState<Partial<Consulta> & { 
+    recurring?: boolean; 
+    recurrenceFrequency?: 'weekly' | 'biweekly'; 
+    recurrenceDuration?: '1m' | '2m';
+  }>({ ...emptyConsulta, recurring: false, recurrenceFrequency: 'weekly', recurrenceDuration: '1m' });
   const [selectedProfessional, setSelectedProfessional] = useState("");
 
   useEffect(() => {
