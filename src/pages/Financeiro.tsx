@@ -93,8 +93,8 @@ export default function Financeiro() {
   });
   
   const { data: tabSummary } = useQuery({
-    queryKey: ["accounts-tab-summary"],
-    queryFn: () => accountsApi.tabSummary(),
+    queryKey: ["accounts-tab-summary", summaryMonth],
+    queryFn: () => accountsApi.tabSummary(summaryMonth),
   });
 
   const accounts = accountsData?.data || [];
