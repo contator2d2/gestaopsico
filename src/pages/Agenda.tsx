@@ -385,6 +385,9 @@ export default function Agenda() {
       value: 0,
       mode: "in_person",
       type: "individual",
+      recurring: false,
+      recurrenceFrequency: "weekly",
+      recurrenceDuration: "1m",
     });
     if (selectedProfessional === "all") {
       setSelectedProfessional("");
