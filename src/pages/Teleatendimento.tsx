@@ -381,8 +381,14 @@ export default function Teleatendimento() {
   const handleNewSession = () => setShowConsentDialog(true);
   const handleConsentAccepted = () => { setShowConsentDialog(false); setShowNewDialog(true); };
   const handleCreateSession = () => {
-    if (!newSessionData.patientId) return toast.error("Selecione um paciente");
-    createMutation.mutate({ patientId: newSessionData.patientId, meetingLink: newSessionData.meetingLink || undefined });
+    if (newSessionData.sessionType === "individual" && !newSessionData.patientId) return toast.error("Selecione um paciente");
+    if (newSessionData.sessionType === "couple" && !newSessionData.coupleId) return toast.error("Selecione um casal");
+    
+    createMutation.mutate({ 
+      patientId: newSessionData.sessionType === "individual" ? newSessionData.patientId : undefined, 
+      coupleId: newSessionData.sessionType === "couple" ? newSessionData.coupleId : undefined,
+      meetingLink: newSessionData.meetingLink || undefined 
+    });
   };
 
   // Document handling
