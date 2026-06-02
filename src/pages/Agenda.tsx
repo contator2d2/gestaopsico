@@ -258,7 +258,14 @@ export default function Agenda() {
       setDialogOpen(false);
       setForm({ ...emptyConsulta });
     },
-    onError: (err: Error) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+    onError: (err: any) => {
+      const details = err.details || err.message;
+      toast({ 
+        title: err.message || "Erro", 
+        description: details, 
+        variant: "destructive" 
+      });
+    },
   });
 
   const attendMutation = useMutation({
