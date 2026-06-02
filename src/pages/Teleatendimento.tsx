@@ -149,6 +149,11 @@ export default function Teleatendimento() {
     queryKey: ["telehealth-sessions"],
     queryFn: () => telehealthApi.list()
   });
+  
+  const { data: couples = [] } = useQuery({
+    queryKey: ["couples-list"],
+    queryFn: async () => { const r = await casaisApi.list(); return Array.isArray(r) ? r : []; }
+  });
 
   const { data: patients = [] } = useQuery({
     queryKey: ["patients-list"],
