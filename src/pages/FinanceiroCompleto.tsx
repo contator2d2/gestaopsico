@@ -719,6 +719,7 @@ export default function FinanceiroCompleto() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
 
         {/* Receivable / Payable tabs */}
         {["receivable", "payable"].map(t => (
