@@ -29,6 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import StructuredSessionContent from "@/components/telehealth/StructuredSessionContent";
+import FloatingMiniRecorder from "@/components/telehealth/FloatingMiniRecorder";
 import { useAiAgents, useAnalyzeText } from "@/hooks/useAi";
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
