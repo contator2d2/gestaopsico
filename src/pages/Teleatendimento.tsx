@@ -1037,6 +1037,19 @@ export default function Teleatendimento() {
         {recordingModalContent}
       </AnimatePresence>
 
+      {isCapturing && isMinimized && activeSession && (
+        <FloatingMiniRecorder
+          isPaused={isPaused}
+          duration={duration}
+          audioLevel={audioLevel}
+          patientName={activeSession.patient?.name}
+          onPause={pauseCapture}
+          onResume={resumeCapture}
+          onStop={stopCapture}
+          onExpand={() => { setIsMinimized(false); setShowRecordingModal(true); }}
+        />
+      )}
+
       <div className="p-3 md:p-6 space-y-4 md:space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
