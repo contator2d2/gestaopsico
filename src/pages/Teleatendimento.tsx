@@ -369,6 +369,9 @@ export default function Teleatendimento() {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
+    if (levelRafRef.current) { cancelAnimationFrame(levelRafRef.current); levelRafRef.current = null; }
+    analyserRef.current = null;
+    setAudioLevel(0);
     micStreamRef.current?.getTracks().forEach(t => t.stop());
     displayStreamRef.current?.getTracks().forEach(t => t.stop());
     if (audioContextRef.current && audioContextRef.current.state !== "closed") {
@@ -378,6 +381,8 @@ export default function Teleatendimento() {
     if (timerRef.current) clearInterval(timerRef.current);
     setIsCapturing(false);
     setIsPaused(false);
+    setIsMinimized(false);
+    setShowRecordingModal(true);
 
     await new Promise(r => setTimeout(r, 500));
 
