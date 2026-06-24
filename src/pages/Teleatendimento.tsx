@@ -545,6 +545,9 @@ export default function Teleatendimento() {
             <div className="flex items-center gap-2">
               {isCapturing && (
                 <>
+                  <Button size="sm" variant="ghost" onClick={() => setIsMinimized(true)} className="gap-1.5" title="Minimizar gravador (janela flutuante)">
+                    <Minimize2 className="h-4 w-4" /> <span className="hidden sm:inline">Minimizar</span>
+                  </Button>
                   {isPaused ? (
                     <Button size="sm" variant="outline" onClick={resumeCapture} className="gap-1.5">
                       <Play className="h-4 w-4" /> Continuar
