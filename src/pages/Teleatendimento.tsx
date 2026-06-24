@@ -504,7 +504,7 @@ export default function Teleatendimento() {
   const recordingModalIsCompleted = activeSession?.processingStatus === "completed";
   const recordingModalIsError = activeSession?.processingStatus === "error";
 
-  const recordingModalContent = (showRecordingModal && activeSession) ? (
+  const recordingModalContent = (showRecordingModal && !isMinimized && activeSession) ? (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
