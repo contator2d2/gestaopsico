@@ -204,33 +204,87 @@ export default function Teleatendimento() {
     onError: (e: Error) => toast.error(e.message)
   });
 
+  const startLevelMonitor = (stream: MediaStream, ctx: AudioContext) => {
+    try {
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      const source = ctx.createMediaStreamSource(stream);
+      source.connect(analyser);
+      analyserRef.current = analyser;
+      const buf = new Uint8Array(analyser.frequencyBinCount);
+      let frame = 0;
+      const tick = () => {
+        if (!analyserRef.current) return;
+        analyser.getByteTimeDomainData(buf);
+        let sum = 0;
+        for (let i = 0; i < buf.length; i++) {
+          const v = (buf[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / buf.length);
+        const norm = Math.min(1, rms * 3);
+        setAudioLevel(norm);
+        frame++;
+        // Warn if no audio after ~15s of recording
+        if (frame === 450 && !lowLevelWarnedRef.current && norm < 0.02) {
+          lowLevelWarnedRef.current = true;
+          toast.warning("Nenhum áudio detectado. Verifique o microfone e se compartilhou o áudio da aba/reunião.");
+        }
+        levelRafRef.current = requestAnimationFrame(tick);
+      };
+      levelRafRef.current = requestAnimationFrame(tick);
+    } catch (e) {
+      console.warn("Level monitor failed", e);
+    }
+  };
+
   const startCapture = async () => {
     if (!activeSession) return;
     try {
-      const micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      lowLevelWarnedRef.current = false;
+      const micStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
+          sampleRate: 48000,
+        } as MediaTrackConstraints,
+      });
       micStreamRef.current = micStream;
 
       const supportsDisplayCapture = typeof navigator.mediaDevices?.getDisplayMedia === "function";
       let recordingStream: MediaStream;
+      const audioCtx = new AudioContext({ sampleRate: 48000 });
+      const dest = audioCtx.createMediaStreamDestination();
+      audioContextRef.current = audioCtx;
 
       if (supportsDisplayCapture) {
         try {
-          const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+          const displayStream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: {
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false,
+            } as MediaTrackConstraints,
+          });
           displayStreamRef.current = displayStream;
-
-          const audioCtx = new AudioContext();
-          const dest = audioCtx.createMediaStreamDestination();
-          audioContextRef.current = audioCtx;
 
           const displayAudioTracks = displayStream.getAudioTracks();
           if (displayAudioTracks.length > 0) {
             const displaySource = audioCtx.createMediaStreamSource(new MediaStream(displayAudioTracks));
-            displaySource.connect(dest);
+            const gain = audioCtx.createGain();
+            gain.gain.value = 1.0;
+            displaySource.connect(gain).connect(dest);
+          } else {
+            toast.info("Atenção: o áudio da reunião não foi compartilhado. Marque 'Compartilhar áudio' ao escolher a aba.");
           }
 
-          const clonedMicTrack = micStream.getAudioTracks()[0].clone();
-          const micSource = audioCtx.createMediaStreamSource(new MediaStream([clonedMicTrack]));
-          micSource.connect(dest);
+          const micSource = audioCtx.createMediaStreamSource(new MediaStream([micStream.getAudioTracks()[0].clone()]));
+          const micGain = audioCtx.createGain();
+          micGain.gain.value = 1.2;
+          micSource.connect(micGain).connect(dest);
 
           recordingStream = dest.stream;
 
@@ -239,29 +293,44 @@ export default function Teleatendimento() {
             displayVideoTrack.onended = () => stopCapture();
           }
         } catch {
-          // User cancelled display capture, fallback to mic only
-          const clonedTrack = micStream.getAudioTracks()[0].clone();
-          recordingStream = new MediaStream([clonedTrack]);
+          // Fallback: somente microfone
+          const micSource = audioCtx.createMediaStreamSource(new MediaStream([micStream.getAudioTracks()[0].clone()]));
+          micSource.connect(dest);
+          recordingStream = dest.stream;
           displayStreamRef.current = null;
           toast.info("Captura será feita apenas pelo microfone.");
         }
       } else {
-        const clonedTrack = micStream.getAudioTracks()[0].clone();
-        recordingStream = new MediaStream([clonedTrack]);
+        const micSource = audioCtx.createMediaStreamSource(new MediaStream([micStream.getAudioTracks()[0].clone()]));
+        micSource.connect(dest);
+        recordingStream = dest.stream;
         displayStreamRef.current = null;
         toast.info("No celular, a captura será feita pelo microfone do aparelho.");
       }
 
-      const preferredMimeType = typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
+      // Monitor de nível
+      startLevelMonitor(recordingStream, audioCtx);
+
+      const candidates = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4;codecs=mp4a.40.2",
+        "audio/mp4",
+      ];
+      const preferredMimeType = (typeof MediaRecorder !== "undefined")
+        ? candidates.find((t) => MediaRecorder.isTypeSupported(t))
         : undefined;
 
       const recorder = preferredMimeType
-        ? new MediaRecorder(recordingStream, { mimeType: preferredMimeType })
-        : new MediaRecorder(recordingStream);
+        ? new MediaRecorder(recordingStream, { mimeType: preferredMimeType, audioBitsPerSecond: 128000 })
+        : new MediaRecorder(recordingStream, { audioBitsPerSecond: 128000 });
       chunksRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      recorder.start(1000);
+      recorder.onerror = (e: any) => {
+        console.error("MediaRecorder error", e);
+        toast.error("Erro no gravador: " + (e?.error?.message || "desconhecido"));
+      };
+      recorder.start(2000); // flush a cada 2s para reduzir perdas
       mediaRecorderRef.current = recorder;
 
       setDuration(0);
@@ -269,6 +338,7 @@ export default function Teleatendimento() {
       setIsCapturing(true);
       setIsPaused(false);
       setShowRecordingModal(true);
+      setIsMinimized(false);
 
       await telehealthApi.start(activeSession.id);
       toast.success("Captura de áudio iniciada!");
