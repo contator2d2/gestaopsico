@@ -93,6 +93,8 @@ export default function Teleatendimento() {
   const [sessionNotes, setSessionNotes] = useState({ motivo: "", anotacoes: "" });
   const [attachedDocs, setAttachedDocs] = useState<AttachedDoc[]>([]);
   const [showRecordingModal, setShowRecordingModal] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("default");
   const [manualAnalysisResult, setManualAnalysisResult] = useState<string | null>(null);
@@ -106,6 +108,9 @@ export default function Teleatendimento() {
   const micStreamRef = useRef<MediaStream | null>(null);
   const displayStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const levelRafRef = useRef<number | null>(null);
+  const lowLevelWarnedRef = useRef<boolean>(false);
   const docInputRef = useRef<HTMLInputElement>(null);
 
   // Preflight device check
