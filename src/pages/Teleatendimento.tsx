@@ -18,7 +18,7 @@ import {
   Upload, FileText, Brain, Trash2, Video, ExternalLink, Loader2, RefreshCw,
   Eye, Plus, ArrowLeft, Headphones, Monitor, Volume2, Info, Pause, Play,
   Paperclip, X, File, Image as ImageIcon, Copy, MessageSquare, Sparkles, Settings2,
-  FileSearch, Check, ChevronsUpDown, Users
+  FileSearch, Check, ChevronsUpDown, Users, Minimize2
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
