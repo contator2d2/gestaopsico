@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Pause, Play, Square, Maximize2, GripVertical, PictureInPicture2, X, Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface FloatingMiniRecorderProps {
   isPaused: boolean;
