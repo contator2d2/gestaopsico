@@ -167,10 +167,10 @@ export default function FloatingMiniRecorder(props: FloatingMiniRecorderProps) {
           </span>
         </div>
         <div className="flex items-center gap-0.5">
-          {supportsDocPip && !pipActive && (
+          {!pipActive && (
             <button
               onClick={openPip}
-              title="Abrir janela flutuante sobre Zoom/Meet"
+              title={supportsDocPip ? "Abrir janela flutuante sobre Zoom/Meet" : "Requer Chrome/Edge/Opera desktop"}
               className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
             >
               <PictureInPicture2 className="h-3.5 w-3.5" />
