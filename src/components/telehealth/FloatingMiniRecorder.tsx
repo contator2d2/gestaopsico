@@ -56,19 +56,30 @@ export default function FloatingMiniRecorder(props: FloatingMiniRecorderProps) {
   };
 
   // Picture-in-Picture (Document PiP) — flutua por cima de Zoom/Meet
-  const supportsDocPip = typeof window !== "undefined" && "documentPictureInPicture" in window;
+  const [supportsDocPip, setSupportsDocPip] = useState(false);
+  useEffect(() => {
+    setSupportsDocPip(typeof window !== "undefined" && "documentPictureInPicture" in window);
+  }, []);
 
   const openPip = useCallback(async () => {
-    if (!supportsDocPip) return;
-    try {
-      // @ts-expect-error - experimental API
-      const pipWin: Window = await window.documentPictureInPicture.requestWindow({
-        width: 280,
-        height: 130,
+    if (typeof window === "undefined") return;
+    // @ts-expect-error - experimental API
+    const dpip = window.documentPictureInPicture;
+    if (!dpip) {
+      toast.error("Seu navegador não suporta janela flutuante", {
+        description: "Use Chrome, Edge ou Opera (versão 116+) no desktop para ativar o modo sobre Zoom/Meet.",
       });
+      return;
+    }
+    if (!window.isSecureContext) {
+      toast.error("Janela flutuante requer HTTPS");
+      return;
+    }
+    try {
+      const pipWin: Window = await dpip.requestWindow({ width: 280, height: 150 });
       pipWindowRef.current = pipWin;
 
-      // Copia os estilos para a janela PiP
+      // Copia estilos (inline + cross-origin via <link>)
       [...document.styleSheets].forEach((sheet) => {
         try {
           const css = [...(sheet.cssRules as any)].map((r: any) => r.cssText).join("");
@@ -85,8 +96,19 @@ export default function FloatingMiniRecorder(props: FloatingMiniRecorderProps) {
         }
       });
 
-      pipWin.document.body.style.margin = "0";
-      pipWin.document.body.style.background = "transparent";
+      // Copia variáveis CSS do :root/html/body para manter tema
+      const rootStyles = getComputedStyle(document.documentElement);
+      const varsCss = Array.from(rootStyles)
+        .filter((k) => k.startsWith("--"))
+        .map((k) => `${k}:${rootStyles.getPropertyValue(k)};`)
+        .join("");
+      const themeStyle = pipWin.document.createElement("style");
+      themeStyle.textContent = `:root{${varsCss}} html,body{background:transparent;margin:0;color-scheme:${document.documentElement.classList.contains("dark") ? "dark" : "light"};} body{font-family:${rootStyles.fontFamily || "system-ui"};}`;
+      pipWin.document.head.appendChild(themeStyle);
+      if (document.documentElement.classList.contains("dark")) {
+        pipWin.document.documentElement.classList.add("dark");
+      }
+
       const mount = pipWin.document.createElement("div");
       pipWin.document.body.appendChild(mount);
       pipMountRef.current = mount;
@@ -97,10 +119,13 @@ export default function FloatingMiniRecorder(props: FloatingMiniRecorderProps) {
         pipWindowRef.current = null;
         setPipActive(false);
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("PiP failed", err);
+      toast.error("Não foi possível abrir a janela flutuante", {
+        description: err?.message || "Tente novamente após iniciar a gravação.",
+      });
     }
-  }, [supportsDocPip]);
+  }, []);
 
   const closePip = () => {
     pipWindowRef.current?.close();
