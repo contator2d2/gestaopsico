@@ -61,25 +61,40 @@ function cleanupTempDir(dirPath) {
   } catch {}
 }
 
-async function whisperTranscribeOnce(filePath, apiKey) {
+async function whisperTranscribeOnce(filePath, apiKey, attempt = 1) {
   const FormData = (await import('form-data')).default;
   const fetch = (await import('node-fetch')).default;
-  
+
   const form = new FormData();
   form.append('file', fs.createReadStream(filePath));
   form.append('model', 'whisper-1');
   form.append('language', 'pt');
   form.append('response_format', 'text');
-  
-  const resp = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}`, ...form.getHeaders() },
-    body: form
-  });
-  
+
+  let resp;
+  try {
+    resp = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, ...form.getHeaders() },
+      body: form,
+      timeout: 300000, // 5 min
+    });
+  } catch (netErr) {
+    if (attempt < WHISPER_MAX_RETRIES) {
+      await sleep(1500 * attempt);
+      return whisperTranscribeOnce(filePath, apiKey, attempt + 1);
+    }
+    throw new Error(`Whisper network error após ${attempt} tentativas: ${netErr.message}`);
+  }
+
   if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`Whisper API error: ${resp.status} - ${err}`);
+    const errBody = await resp.text().catch(() => '');
+    const retriable = resp.status === 429 || resp.status >= 500;
+    if (retriable && attempt < WHISPER_MAX_RETRIES) {
+      await sleep(2000 * attempt);
+      return whisperTranscribeOnce(filePath, apiKey, attempt + 1);
+    }
+    throw new Error(`Whisper API error: ${resp.status} - ${errBody}`);
   }
   return resp.text();
 }
