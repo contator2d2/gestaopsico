@@ -1212,6 +1212,11 @@ export default function Teleatendimento() {
                   <RefreshCw className="h-3 w-3 mr-1" /> Tentar novamente
                 </Button>
               )}
+              {["uploaded", "transcribing", "organizing"].includes(activeSession.processingStatus) && (
+                <Button size="sm" variant="outline" onClick={() => reprocessMutation.mutate(activeSession.id)} disabled={reprocessMutation.isPending}>
+                  <RefreshCw className={`h-3 w-3 mr-1 ${reprocessMutation.isPending ? "animate-spin" : ""}`} /> Reprocessar segmentos
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
