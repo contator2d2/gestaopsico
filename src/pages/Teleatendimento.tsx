@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { telehealthApi, TelehealthSession } from "@/lib/telehealthApi";
+import { recordingStorage } from "@/lib/recordingStorage";
 import { pacientesApi, Patient, consultasApi, casaisApi, Casal } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -113,6 +114,18 @@ export default function Teleatendimento() {
   const lowLevelWarnedRef = useRef<boolean>(false);
   const docInputRef = useRef<HTMLInputElement>(null);
 
+  // Segmented recording state (rotates MediaRecorder every SEGMENT_SECONDS so each
+  // segment is a self-contained, valid webm file we can upload independently).
+  const SEGMENT_SECONDS = 300; // 5 minutes
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recorderMimeRef = useRef<string | undefined>(undefined);
+  const segmentIndexRef = useRef<number>(0);
+  const segmentRotateTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isRotatingRef = useRef<boolean>(false);
+  const pendingUploadsRef = useRef<Set<number>>(new Set());
+  const stopRequestedRef = useRef<boolean>(false);
+  const [uploadStats, setUploadStats] = useState<{ uploaded: number; total: number; failing: boolean }>({ uploaded: 0, total: 0, failing: false });
+
   // Preflight device check
   const runPreflight = async () => {
     setPreflight(v => ({ ...v, loading: true, err: "" }));
@@ -155,6 +168,57 @@ export default function Teleatendimento() {
     queryKey: ["telehealth-sessions"],
     queryFn: () => telehealthApi.list()
   });
+
+  // Recover orphan segments left in IndexedDB (crashed tab, closed browser mid-record)
+  const recoveredRef = useRef<boolean>(false);
+  useEffect(() => {
+    if (recoveredRef.current || !sessions || sessions.length === 0) return;
+    recoveredRef.current = true;
+    (async () => {
+      try {
+        const orphanIds = await recordingStorage.listOrphanSessionIds();
+        if (orphanIds.length === 0) return;
+        const validIds = new Set(sessions.map((s) => s.id));
+        for (const sid of orphanIds) {
+          if (!validIds.has(sid)) {
+            // Session was deleted server-side; drop local data
+            await recordingStorage.clearSession(sid).catch(() => undefined);
+            continue;
+          }
+          const segs = await recordingStorage.listBySession(sid);
+          if (segs.length === 0) continue;
+          toast.info(`Recuperando gravação anterior: ${segs.length} segmento(s) a reenviar...`);
+          let allOk = true;
+          for (const seg of segs.sort((a, b) => a.index - b.index)) {
+            try {
+              await telehealthApi.uploadSegment(sid, seg.index, seg.blob, { maxRetries: 3 });
+              await recordingStorage.remove(sid, seg.index).catch(() => undefined);
+            } catch (e) {
+              console.error("Falha ao recuperar segmento", seg.index, e);
+              allOk = false;
+              break;
+            }
+          }
+          if (allOk) {
+            const notes = segs[segs.length - 1]?.notes || {};
+            try {
+              await telehealthApi.finalizeSegments(sid, notes);
+              await recordingStorage.clearSession(sid).catch(() => undefined);
+              toast.success("Gravação anterior recuperada e enviada para transcrição.");
+              queryClient.invalidateQueries({ queryKey: ["telehealth-sessions"] });
+            } catch (e: any) {
+              toast.error("Falha ao finalizar gravação recuperada: " + e.message);
+            }
+          } else {
+            toast.warning("Alguns segmentos ainda não subiram — vamos tentar de novo depois.");
+          }
+        }
+      } catch (e) {
+        console.warn("Recovery scan failed", e);
+      }
+    })();
+  }, [sessions, queryClient]);
+
   
   const { data: couples = [] } = useQuery({
     queryKey: ["couples-list"],
@@ -321,17 +385,18 @@ export default function Teleatendimento() {
         ? candidates.find((t) => MediaRecorder.isTypeSupported(t))
         : undefined;
 
-      const recorder = preferredMimeType
-        ? new MediaRecorder(recordingStream, { mimeType: preferredMimeType, audioBitsPerSecond: 128000 })
-        : new MediaRecorder(recordingStream, { audioBitsPerSecond: 128000 });
-      chunksRef.current = [];
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      recorder.onerror = (e: any) => {
-        console.error("MediaRecorder error", e);
-        toast.error("Erro no gravador: " + (e?.error?.message || "desconhecido"));
-      };
-      recorder.start(2000); // flush a cada 2s para reduzir perdas
-      mediaRecorderRef.current = recorder;
+      recordingStreamRef.current = recordingStream;
+      recorderMimeRef.current = preferredMimeType;
+      segmentIndexRef.current = 0;
+      pendingUploadsRef.current = new Set();
+      stopRequestedRef.current = false;
+      setUploadStats({ uploaded: 0, total: 0, failing: false });
+
+      // Start first segment; rotate every SEGMENT_SECONDS
+      startNewSegmentRecorder(false);
+      segmentRotateTimerRef.current = setInterval(() => {
+        rotateSegment(false).catch((e) => console.error("rotate error", e));
+      }, SEGMENT_SECONDS * 1000);
 
       setDuration(0);
       timerRef.current = setInterval(() => setDuration(d => d + 1), 1000);
@@ -341,15 +406,103 @@ export default function Teleatendimento() {
       setIsMinimized(false);
 
       await telehealthApi.start(activeSession.id);
-      toast.success("Captura de áudio iniciada!");
+      toast.success("Captura iniciada — gravando em segmentos de 5 min (à prova de falhas).");
     } catch (err: any) {
       toast.error("Erro ao iniciar captura: " + (err.message || "Permissão negada"));
+    }
+  };
+
+  // Creates a fresh MediaRecorder over the shared recordingStream.
+  // On stop, its accumulated chunks become one complete webm segment.
+  const startNewSegmentRecorder = (isFinal: boolean) => {
+    const stream = recordingStreamRef.current;
+    if (!stream) return;
+    const mime = recorderMimeRef.current;
+    const opts: MediaRecorderOptions = { audioBitsPerSecond: 32000 };
+    if (mime) opts.mimeType = mime;
+    const recorder = new MediaRecorder(stream, opts);
+    const localChunks: Blob[] = [];
+    const myIndex = segmentIndexRef.current;
+
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) localChunks.push(e.data); };
+    recorder.onerror = (e: any) => {
+      console.error("MediaRecorder error", e);
+      toast.error("Erro no gravador: " + (e?.error?.message || "desconhecido"));
+    };
+    recorder.onstop = async () => {
+      if (localChunks.length === 0) return;
+      const blob = new Blob(localChunks, { type: mime?.includes("mp4") ? "audio/mp4" : "audio/webm" });
+      const sessionId = activeSession?.id;
+      if (!sessionId) return;
+      // Persist first so a crash doesn't lose it
+      try {
+        await recordingStorage.put({
+          sessionId, index: myIndex, blob, createdAt: Date.now(),
+          notes: {
+            motivo: sessionNotes.motivo,
+            anotacoes: sessionNotes.anotacoes,
+            agentId: selectedAgentId === "default" ? undefined : selectedAgentId,
+          },
+          final: isFinal,
+        });
+      } catch (e) {
+        console.warn("Falha ao persistir segmento no IndexedDB", e);
+      }
+      // Upload in background (with retries)
+      uploadSegmentInBackground(sessionId, myIndex, blob);
+    };
+
+    recorder.start();
+    mediaRecorderRef.current = recorder;
+  };
+
+  const uploadSegmentInBackground = (sessionId: string, index: number, blob: Blob) => {
+    pendingUploadsRef.current.add(index);
+    setUploadStats((s) => ({ ...s, total: Math.max(s.total, index + 1) }));
+    telehealthApi.uploadSegment(sessionId, index, blob, {
+      onAttempt: (n) => {
+        if (n > 1) setUploadStats((s) => ({ ...s, failing: true }));
+      },
+    })
+      .then(async () => {
+        await recordingStorage.remove(sessionId, index).catch(() => undefined);
+        pendingUploadsRef.current.delete(index);
+        setUploadStats((s) => ({ uploaded: s.uploaded + 1, total: s.total, failing: pendingUploadsRef.current.size > 0 ? s.failing : false }));
+      })
+      .catch((err) => {
+        console.error(`Segment ${index} upload failed after retries:`, err);
+        toast.error(`Segmento ${index + 1} falhou. Fica salvo localmente e será reenviado.`);
+        setUploadStats((s) => ({ ...s, failing: true }));
+      });
+  };
+
+  const rotateSegment = async (isFinal: boolean) => {
+    if (isRotatingRef.current) return;
+    isRotatingRef.current = true;
+    try {
+      const current = mediaRecorderRef.current;
+      if (!current || current.state === "inactive") { isRotatingRef.current = false; return; }
+      // stop() flushes final data via ondataavailable then onstop
+      await new Promise<void>((resolve) => {
+        const orig = current.onstop;
+        current.onstop = (ev) => {
+          try { (orig as any)?.call(current, ev); } finally { resolve(); }
+        };
+        try { current.stop(); } catch { resolve(); }
+      });
+      segmentIndexRef.current += 1;
+      if (!isFinal && recordingStreamRef.current && !stopRequestedRef.current) {
+        startNewSegmentRecorder(false);
+      }
+    } finally {
+      isRotatingRef.current = false;
     }
   };
 
   const pauseCapture = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
       mediaRecorderRef.current.pause();
+      if (segmentRotateTimerRef.current) { clearInterval(segmentRotateTimerRef.current); segmentRotateTimerRef.current = null; }
       if (timerRef.current) clearInterval(timerRef.current);
       setIsPaused(true);
       toast.info("Gravação pausada");
@@ -359,6 +512,11 @@ export default function Teleatendimento() {
   const resumeCapture = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "paused") {
       mediaRecorderRef.current.resume();
+      if (!segmentRotateTimerRef.current) {
+        segmentRotateTimerRef.current = setInterval(() => {
+          rotateSegment(false).catch((e) => console.error("rotate error", e));
+        }, SEGMENT_SECONDS * 1000);
+      }
       timerRef.current = setInterval(() => setDuration(d => d + 1), 1000);
       setIsPaused(false);
       toast.info("Gravação retomada");
@@ -366,9 +524,12 @@ export default function Teleatendimento() {
   };
 
   const stopCapture = useCallback(async () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-    }
+    stopRequestedRef.current = true;
+    if (segmentRotateTimerRef.current) { clearInterval(segmentRotateTimerRef.current); segmentRotateTimerRef.current = null; }
+
+    // Flush the final segment
+    await rotateSegment(true);
+
     if (levelRafRef.current) { cancelAnimationFrame(levelRafRef.current); levelRafRef.current = null; }
     analyserRef.current = null;
     setAudioLevel(0);
@@ -378,35 +539,39 @@ export default function Teleatendimento() {
       audioContextRef.current.close().catch(() => undefined);
     }
     audioContextRef.current = null;
+    recordingStreamRef.current = null;
     if (timerRef.current) clearInterval(timerRef.current);
     setIsCapturing(false);
     setIsPaused(false);
     setIsMinimized(false);
     setShowRecordingModal(true);
 
-    await new Promise(r => setTimeout(r, 500));
+    if (!activeSession) return;
 
-    if (chunksRef.current.length > 0 && activeSession) {
-      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-      toast.info("Enviando áudio para processamento seguro...");
-      try {
-        await telehealthApi.uploadAudio(activeSession.id, blob, {
-          motivo: sessionNotes.motivo,
-          anotacoes: sessionNotes.anotacoes,
-          agentId: selectedAgentId === "default" ? undefined : selectedAgentId,
-        });
-        
-        // If an agent is selected, we could potentially pass it to the processing step
-        // For now, the backend uses a default. We'll trigger processing manually if needed
-        // or update the backend to support agentId in the next step.
-        
-        setActiveSession(prev => prev ? { ...prev, status: "uploaded", processingStatus: "uploaded" } : null);
-        toast.success("Áudio enviado! Transcrição em andamento...");
-      } catch (err: any) {
-        toast.error("Erro ao enviar áudio: " + err.message);
-      }
+    toast.info("Finalizando envio dos segmentos...");
+    // Wait for all pending uploads (with a safety timeout of ~2 min)
+    const started = Date.now();
+    while (pendingUploadsRef.current.size > 0 && Date.now() - started < 120000) {
+      await new Promise(r => setTimeout(r, 500));
     }
-  }, [activeSession, sessionNotes]);
+    if (pendingUploadsRef.current.size > 0) {
+      toast.error("Alguns segmentos ainda não subiram. Vamos tentar reenviar automaticamente depois.");
+      return;
+    }
+
+    try {
+      await telehealthApi.finalizeSegments(activeSession.id, {
+        motivo: sessionNotes.motivo,
+        anotacoes: sessionNotes.anotacoes,
+        agentId: selectedAgentId === "default" ? undefined : selectedAgentId,
+      });
+      await recordingStorage.clearSession(activeSession.id).catch(() => undefined);
+      setActiveSession(prev => prev ? { ...prev, status: "uploaded", processingStatus: "uploaded" } : null);
+      toast.success("Áudio enviado! Transcrição em andamento...");
+    } catch (err: any) {
+      toast.error("Erro ao finalizar áudio: " + err.message);
+    }
+  }, [activeSession, sessionNotes, selectedAgentId]);
 
   const retryMutation = useMutation({
     mutationFn: (id: string) => telehealthApi.retry(id),

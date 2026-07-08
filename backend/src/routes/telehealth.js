@@ -15,9 +15,28 @@ const execFileAsync = promisify(execFile);
 router.use(authMiddleware);
 
 const AUDIO_DIR = path.join(__dirname, '../../tmp/telehealth-audio');
+const SEGMENTS_DIR = path.join(__dirname, '../../tmp/telehealth-segments');
 if (!fs.existsSync(AUDIO_DIR)) fs.mkdirSync(AUDIO_DIR, { recursive: true });
+if (!fs.existsSync(SEGMENTS_DIR)) fs.mkdirSync(SEGMENTS_DIR, { recursive: true });
 const WHISPER_SAFE_LIMIT_BYTES = 24 * 1024 * 1024; // Whisper accepts up to 25MB
 const WHISPER_INITIAL_SEGMENT_SECONDS = 600;
+const WHISPER_MAX_RETRIES = 3;
+
+// Helper: sleep
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Helper: stream request body to a file (avoid buffering huge uploads in RAM)
+function streamRequestToFile(req, filePath) {
+  return new Promise((resolve, reject) => {
+    const out = fs.createWriteStream(filePath);
+    let bytes = 0;
+    req.on('data', (chunk) => { bytes += chunk.length; });
+    req.on('error', reject);
+    out.on('error', reject);
+    out.on('finish', () => resolve(bytes));
+    req.pipe(out);
+  });
+}
 
 // Helper: create audit log
 async function auditLog(sessionId, action, details) {
@@ -42,25 +61,40 @@ function cleanupTempDir(dirPath) {
   } catch {}
 }
 
-async function whisperTranscribeOnce(filePath, apiKey) {
+async function whisperTranscribeOnce(filePath, apiKey, attempt = 1) {
   const FormData = (await import('form-data')).default;
   const fetch = (await import('node-fetch')).default;
-  
+
   const form = new FormData();
   form.append('file', fs.createReadStream(filePath));
   form.append('model', 'whisper-1');
   form.append('language', 'pt');
   form.append('response_format', 'text');
-  
-  const resp = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}`, ...form.getHeaders() },
-    body: form
-  });
-  
+
+  let resp;
+  try {
+    resp = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, ...form.getHeaders() },
+      body: form,
+      timeout: 300000, // 5 min
+    });
+  } catch (netErr) {
+    if (attempt < WHISPER_MAX_RETRIES) {
+      await sleep(1500 * attempt);
+      return whisperTranscribeOnce(filePath, apiKey, attempt + 1);
+    }
+    throw new Error(`Whisper network error após ${attempt} tentativas: ${netErr.message}`);
+  }
+
   if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`Whisper API error: ${resp.status} - ${err}`);
+    const errBody = await resp.text().catch(() => '');
+    const retriable = resp.status === 429 || resp.status >= 500;
+    if (retriable && attempt < WHISPER_MAX_RETRIES) {
+      await sleep(2000 * attempt);
+      return whisperTranscribeOnce(filePath, apiKey, attempt + 1);
+    }
+    throw new Error(`Whisper API error: ${resp.status} - ${errBody}`);
   }
   return resp.text();
 }
@@ -520,7 +554,8 @@ router.post('/:id/stop', async (req, res) => {
 });
 
 // UPLOAD audio
-router.post('/:id/upload', express.raw({ type: ['audio/*', 'application/octet-stream'], limit: '200mb' }), async (req, res) => {
+// UPLOAD audio (single-shot legacy path). Streams to disk instead of buffering.
+router.post('/:id/upload', async (req, res) => {
   try {
     const session = await prisma.telehealthSession.findFirst({
       where: { id: req.params.id, professionalId: req.userId }
@@ -529,7 +564,7 @@ router.post('/:id/upload', express.raw({ type: ['audio/*', 'application/octet-st
 
     const fileName = `${crypto.randomUUID()}.webm`;
     const filePath = path.join(AUDIO_DIR, fileName);
-    fs.writeFileSync(filePath, req.body);
+    const bytes = await streamRequestToFile(req, filePath);
 
     // Read session notes from headers
     const motivo = req.headers['x-session-motivo'] ? decodeURIComponent(req.headers['x-session-motivo']) : null;
@@ -547,7 +582,7 @@ router.post('/:id/upload', express.raw({ type: ['audio/*', 'application/octet-st
         updatedAt: new Date()
       }
     });
-    await auditLog(session.id, 'audio_uploaded', { fileName: '***', size: req.body.length });
+    await auditLog(session.id, 'audio_uploaded', { fileName: '***', size: bytes });
 
     // Start async transcription with notes context
     processTranscription(req.params.id, req.userId, { motivo, anotacoes }).catch(err => {
@@ -557,6 +592,115 @@ router.post('/:id/upload', express.raw({ type: ['audio/*', 'application/octet-st
     res.json({ message: 'Áudio enviado. Transcrição em processamento.' });
   } catch (err) {
     res.status(500).json({ error: 'Erro ao enviar áudio', details: err.message });
+  }
+});
+
+// UPLOAD one segment of a segmented recording (client streams every ~5 min).
+// Header X-Segment-Index (0-based). Segments are stored under SEGMENTS_DIR/<sessionId>/seg-XXX.webm
+router.post('/:id/upload-segment', async (req, res) => {
+  try {
+    const session = await prisma.telehealthSession.findFirst({
+      where: { id: req.params.id, professionalId: req.userId }
+    });
+    if (!session) return res.status(404).json({ error: 'Sessão não encontrada' });
+
+    const indexRaw = req.headers['x-segment-index'];
+    const index = Number.parseInt(Array.isArray(indexRaw) ? indexRaw[0] : indexRaw, 10);
+    if (!Number.isFinite(index) || index < 0 || index > 9999) {
+      return res.status(400).json({ error: 'X-Segment-Index inválido' });
+    }
+
+    const dir = path.join(SEGMENTS_DIR, session.id);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const segName = `seg-${String(index).padStart(4, '0')}.webm`;
+    const segPath = path.join(dir, segName);
+
+    const bytes = await streamRequestToFile(req, segPath);
+    await auditLog(session.id, 'segment_uploaded', { index, size: bytes });
+    res.json({ message: 'Segmento recebido', index, size: bytes });
+  } catch (err) {
+    console.error('Segment upload error:', err);
+    res.status(500).json({ error: 'Erro ao enviar segmento', details: err.message });
+  }
+});
+
+// FINALIZE segmented upload: concat segments via ffmpeg, kick transcription
+router.post('/:id/finalize', express.json({ limit: '128kb' }), async (req, res) => {
+  try {
+    const session = await prisma.telehealthSession.findFirst({
+      where: { id: req.params.id, professionalId: req.userId }
+    });
+    if (!session) return res.status(404).json({ error: 'Sessão não encontrada' });
+
+    const dir = path.join(SEGMENTS_DIR, session.id);
+    if (!fs.existsSync(dir)) return res.status(400).json({ error: 'Nenhum segmento recebido' });
+
+    const segFiles = fs.readdirSync(dir)
+      .filter(f => f.startsWith('seg-') && f.endsWith('.webm'))
+      .sort()
+      .map(f => path.join(dir, f));
+
+    if (segFiles.length === 0) return res.status(400).json({ error: 'Nenhum segmento válido encontrado' });
+
+    const fileName = `${crypto.randomUUID()}.webm`;
+    const filePath = path.join(AUDIO_DIR, fileName);
+
+    // Try ffmpeg concat (re-encode to opus mono 32k for stable Whisper input).
+    // Fallback: if ffmpeg missing, use the first segment only (best-effort).
+    try {
+      await execFileAsync('ffmpeg', ['-version']);
+      const listPath = path.join(dir, 'concat.txt');
+      fs.writeFileSync(listPath, segFiles.map(p => `file '${p.replace(/'/g, "'\\''")}'`).join('\n'));
+      await execFileAsync('ffmpeg', [
+        '-hide_banner', '-loglevel', 'error',
+        '-f', 'concat', '-safe', '0',
+        '-i', listPath,
+        '-vn', '-ac', '1', '-c:a', 'libopus', '-b:a', '32k',
+        filePath
+      ]);
+      try { fs.unlinkSync(listPath); } catch {}
+    } catch (concatErr) {
+      console.warn('ffmpeg concat failed, falling back to raw concat:', concatErr.message);
+      // Raw byte concat as a last resort (works for same-encoder webm chunks in most cases)
+      const out = fs.createWriteStream(filePath);
+      for (const seg of segFiles) {
+        await new Promise((resolve, reject) => {
+          fs.createReadStream(seg).on('end', resolve).on('error', reject).pipe(out, { end: false });
+        });
+      }
+      out.end();
+      await new Promise((r) => out.on('finish', r));
+    }
+
+    // Clean segments now that we have the merged file
+    for (const seg of segFiles) { try { fs.unlinkSync(seg); } catch {} }
+    try { fs.rmdirSync(dir); } catch {}
+
+    const totalBytes = fs.statSync(filePath).size;
+    const { motivo, anotacoes, agentId } = req.body || {};
+
+    await prisma.telehealthSession.update({
+      where: { id: req.params.id },
+      data: {
+        audioFileName: fileName,
+        audioUploadedAt: new Date(),
+        status: 'uploaded',
+        endedAt: new Date(),
+        duration: session.startedAt ? Math.round((Date.now() - new Date(session.startedAt).getTime()) / 1000) : null,
+        processingStatus: 'uploaded',
+        updatedAt: new Date()
+      }
+    });
+    await auditLog(session.id, 'audio_finalized', { segments: segFiles.length, size: totalBytes });
+
+    processTranscription(req.params.id, req.userId, { motivo, anotacoes, agentId }).catch(err => {
+      console.error('Transcription error:', err);
+    });
+
+    res.json({ message: 'Áudio finalizado, transcrição em processamento.', segments: segFiles.length, size: totalBytes });
+  } catch (err) {
+    console.error('Finalize error:', err);
+    res.status(500).json({ error: 'Erro ao finalizar áudio', details: err.message });
   }
 });
 

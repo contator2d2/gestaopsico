@@ -54,5 +54,53 @@ export const telehealthApi = {
     });
     if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).error || "Erro ao enviar áudio");
     return resp.json();
-  }
+  },
+
+  // Segmented recording: upload one segment (fault-tolerant, retriable)
+  uploadSegment: async (id: string, index: number, blob: Blob, opts?: { maxRetries?: number; onAttempt?: (n: number) => void }) => {
+    const token = localStorage.getItem("auth_token") || localStorage.getItem("token");
+    const { API_BASE_URL } = await import("./api");
+    const maxRetries = opts?.maxRetries ?? 4;
+    let lastErr: any = null;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      opts?.onAttempt?.(attempt);
+      try {
+        const resp = await fetch(`${API_BASE_URL}/telehealth/${id}/upload-segment`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/octet-stream",
+            "X-Segment-Index": String(index),
+          },
+          body: blob
+        });
+        if (!resp.ok) {
+          const detail = await resp.json().catch(() => ({}));
+          throw new Error(detail.error || detail.details || `HTTP ${resp.status}`);
+        }
+        return resp.json();
+      } catch (err: any) {
+        lastErr = err;
+        if (attempt < maxRetries) {
+          await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+        }
+      }
+    }
+    throw lastErr || new Error("Falha ao enviar segmento");
+  },
+
+  finalizeSegments: async (id: string, notes?: { motivo?: string; anotacoes?: string; agentId?: string }) => {
+    const token = localStorage.getItem("auth_token") || localStorage.getItem("token");
+    const { API_BASE_URL } = await import("./api");
+    const resp = await fetch(`${API_BASE_URL}/telehealth/${id}/finalize`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(notes || {})
+    });
+    if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).error || "Erro ao finalizar áudio");
+    return resp.json();
+  },
 };
