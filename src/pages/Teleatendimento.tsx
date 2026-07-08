@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { telehealthApi, TelehealthSession } from "@/lib/telehealthApi";
+import { recordingStorage } from "@/lib/recordingStorage";
 import { pacientesApi, Patient, consultasApi, casaisApi, Casal } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
