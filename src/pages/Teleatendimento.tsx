@@ -113,6 +113,18 @@ export default function Teleatendimento() {
   const lowLevelWarnedRef = useRef<boolean>(false);
   const docInputRef = useRef<HTMLInputElement>(null);
 
+  // Segmented recording state (rotates MediaRecorder every SEGMENT_SECONDS so each
+  // segment is a self-contained, valid webm file we can upload independently).
+  const SEGMENT_SECONDS = 300; // 5 minutes
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recorderMimeRef = useRef<string | undefined>(undefined);
+  const segmentIndexRef = useRef<number>(0);
+  const segmentRotateTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isRotatingRef = useRef<boolean>(false);
+  const pendingUploadsRef = useRef<Set<number>>(new Set());
+  const stopRequestedRef = useRef<boolean>(false);
+  const [uploadStats, setUploadStats] = useState<{ uploaded: number; total: number; failing: boolean }>({ uploaded: 0, total: 0, failing: false });
+
   // Preflight device check
   const runPreflight = async () => {
     setPreflight(v => ({ ...v, loading: true, err: "" }));
