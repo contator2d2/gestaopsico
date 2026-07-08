@@ -579,6 +579,32 @@ export default function Teleatendimento() {
     onError: (e: Error) => toast.error(e.message)
   });
 
+  // Reprocessar: reenvia segmentos pendentes do IndexedDB (se houver)
+  // e força finalize/retry no backend para concluir a transcrição.
+  const reprocessMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const segs = await recordingStorage.listBySession(id);
+      if (segs.length > 0) {
+        toast.info(`Reenviando ${segs.length} segmento(s) pendente(s)...`);
+        for (const seg of segs.sort((a, b) => a.index - b.index)) {
+          await telehealthApi.uploadSegment(id, seg.index, seg.blob, { maxRetries: 4 });
+          await recordingStorage.remove(id, seg.index).catch(() => undefined);
+        }
+        const notes = segs[segs.length - 1]?.notes || {};
+        await telehealthApi.finalizeSegments(id, notes);
+        await recordingStorage.clearSession(id).catch(() => undefined);
+        return { finalized: true };
+      }
+      await telehealthApi.retry(id);
+      return { finalized: false };
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["telehealth-sessions"] });
+      toast.success(res.finalized ? "Segmentos reenviados. Transcrição em andamento..." : "Reprocessamento iniciado no servidor...");
+    },
+    onError: (e: Error) => toast.error("Falha ao reprocessar: " + e.message)
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => telehealthApi.delete(id),
     onSuccess: () => {
@@ -1186,6 +1212,11 @@ export default function Teleatendimento() {
                   <RefreshCw className="h-3 w-3 mr-1" /> Tentar novamente
                 </Button>
               )}
+              {["uploaded", "transcribing", "organizing"].includes(activeSession.processingStatus) && (
+                <Button size="sm" variant="outline" onClick={() => reprocessMutation.mutate(activeSession.id)} disabled={reprocessMutation.isPending}>
+                  <RefreshCw className={`h-3 w-3 mr-1 ${reprocessMutation.isPending ? "animate-spin" : ""}`} /> Reprocessar segmentos
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
@@ -1298,6 +1329,14 @@ export default function Teleatendimento() {
                               retryMutation.mutate(s.id);
                             }}>
                               <RefreshCw className="h-3 w-3" /> Tentar novamente
+                            </Button>
+                          )}
+                          {(["uploaded", "transcribing", "organizing"].includes(s.processingStatus)) && (
+                            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-primary" onClick={(e) => {
+                              e.stopPropagation();
+                              reprocessMutation.mutate(s.id);
+                            }} disabled={reprocessMutation.isPending}>
+                              <RefreshCw className={`h-3 w-3 ${reprocessMutation.isPending ? "animate-spin" : ""}`} /> Reprocessar
                             </Button>
                           )}
                           {canDelete && (
