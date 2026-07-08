@@ -15,9 +15,28 @@ const execFileAsync = promisify(execFile);
 router.use(authMiddleware);
 
 const AUDIO_DIR = path.join(__dirname, '../../tmp/telehealth-audio');
+const SEGMENTS_DIR = path.join(__dirname, '../../tmp/telehealth-segments');
 if (!fs.existsSync(AUDIO_DIR)) fs.mkdirSync(AUDIO_DIR, { recursive: true });
+if (!fs.existsSync(SEGMENTS_DIR)) fs.mkdirSync(SEGMENTS_DIR, { recursive: true });
 const WHISPER_SAFE_LIMIT_BYTES = 24 * 1024 * 1024; // Whisper accepts up to 25MB
 const WHISPER_INITIAL_SEGMENT_SECONDS = 600;
+const WHISPER_MAX_RETRIES = 3;
+
+// Helper: sleep
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Helper: stream request body to a file (avoid buffering huge uploads in RAM)
+function streamRequestToFile(req, filePath) {
+  return new Promise((resolve, reject) => {
+    const out = fs.createWriteStream(filePath);
+    let bytes = 0;
+    req.on('data', (chunk) => { bytes += chunk.length; });
+    req.on('error', reject);
+    out.on('error', reject);
+    out.on('finish', () => resolve(bytes));
+    req.pipe(out);
+  });
+}
 
 // Helper: create audit log
 async function auditLog(sessionId, action, details) {
