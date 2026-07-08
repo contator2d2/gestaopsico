@@ -1326,6 +1326,14 @@ export default function Teleatendimento() {
                               <RefreshCw className="h-3 w-3" /> Tentar novamente
                             </Button>
                           )}
+                          {(["uploaded", "transcribing", "organizing"].includes(s.processingStatus)) && (
+                            <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-primary" onClick={(e) => {
+                              e.stopPropagation();
+                              reprocessMutation.mutate(s.id);
+                            }} disabled={reprocessMutation.isPending}>
+                              <RefreshCw className={`h-3 w-3 ${reprocessMutation.isPending ? "animate-spin" : ""}`} /> Reprocessar
+                            </Button>
+                          )}
                           {canDelete && (
                             <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-destructive" onClick={(e) => {
                               e.stopPropagation();
