@@ -168,6 +168,57 @@ export default function Teleatendimento() {
     queryKey: ["telehealth-sessions"],
     queryFn: () => telehealthApi.list()
   });
+
+  // Recover orphan segments left in IndexedDB (crashed tab, closed browser mid-record)
+  const recoveredRef = useRef<boolean>(false);
+  useEffect(() => {
+    if (recoveredRef.current || !sessions || sessions.length === 0) return;
+    recoveredRef.current = true;
+    (async () => {
+      try {
+        const orphanIds = await recordingStorage.listOrphanSessionIds();
+        if (orphanIds.length === 0) return;
+        const validIds = new Set(sessions.map((s) => s.id));
+        for (const sid of orphanIds) {
+          if (!validIds.has(sid)) {
+            // Session was deleted server-side; drop local data
+            await recordingStorage.clearSession(sid).catch(() => undefined);
+            continue;
+          }
+          const segs = await recordingStorage.listBySession(sid);
+          if (segs.length === 0) continue;
+          toast.info(`Recuperando gravação anterior: ${segs.length} segmento(s) a reenviar...`);
+          let allOk = true;
+          for (const seg of segs.sort((a, b) => a.index - b.index)) {
+            try {
+              await telehealthApi.uploadSegment(sid, seg.index, seg.blob, { maxRetries: 3 });
+              await recordingStorage.remove(sid, seg.index).catch(() => undefined);
+            } catch (e) {
+              console.error("Falha ao recuperar segmento", seg.index, e);
+              allOk = false;
+              break;
+            }
+          }
+          if (allOk) {
+            const notes = segs[segs.length - 1]?.notes || {};
+            try {
+              await telehealthApi.finalizeSegments(sid, notes);
+              await recordingStorage.clearSession(sid).catch(() => undefined);
+              toast.success("Gravação anterior recuperada e enviada para transcrição.");
+              queryClient.invalidateQueries({ queryKey: ["telehealth-sessions"] });
+            } catch (e: any) {
+              toast.error("Falha ao finalizar gravação recuperada: " + e.message);
+            }
+          } else {
+            toast.warning("Alguns segmentos ainda não subiram — vamos tentar de novo depois.");
+          }
+        }
+      } catch (e) {
+        console.warn("Recovery scan failed", e);
+      }
+    })();
+  }, [sessions, queryClient]);
+
   
   const { data: couples = [] } = useQuery({
     queryKey: ["couples-list"],
