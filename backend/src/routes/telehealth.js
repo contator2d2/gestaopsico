@@ -830,19 +830,14 @@ async function processTranscription(sessionId, userId, notes = {}) {
     });
     await auditLog(sessionId, 'record_created', { recordId: record.id });
 
-    // DELETE audio file immediately
-    try {
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      await prisma.telehealthSession.update({
-        where: { id: sessionId },
-        data: { audioFileName: null, audioDeletedAt: new Date(), status: 'completed', updatedAt: new Date() }
-      });
-      await auditLog(sessionId, 'audio_deleted', { reason: 'transcription_completed' });
-    } catch (delErr) {
-      console.error('Error deleting audio:', delErr);
-      // Schedule for later cleanup
-      await auditLog(sessionId, 'audio_delete_failed', { error: delErr.message });
-    }
+    // Áudio é preservado por 48h após o processamento para permitir reprocessar
+    // caso a transcrição/organização precise ser revisada. A limpeza periódica
+    // abaixo remove o arquivo depois desse período.
+    await prisma.telehealthSession.update({
+      where: { id: sessionId },
+      data: { status: 'completed', updatedAt: new Date() }
+    });
+    await auditLog(sessionId, 'audio_retained_48h', { reason: 'transcription_completed' });
   } catch (err) {
     const rawError = err?.message || 'Erro desconhecido no processamento';
     const processingError = rawError.includes('Whisper API error: 413')
