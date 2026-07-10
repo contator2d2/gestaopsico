@@ -830,19 +830,14 @@ async function processTranscription(sessionId, userId, notes = {}) {
     });
     await auditLog(sessionId, 'record_created', { recordId: record.id });
 
-    // DELETE audio file immediately
-    try {
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      await prisma.telehealthSession.update({
-        where: { id: sessionId },
-        data: { audioFileName: null, audioDeletedAt: new Date(), status: 'completed', updatedAt: new Date() }
-      });
-      await auditLog(sessionId, 'audio_deleted', { reason: 'transcription_completed' });
-    } catch (delErr) {
-      console.error('Error deleting audio:', delErr);
-      // Schedule for later cleanup
-      await auditLog(sessionId, 'audio_delete_failed', { error: delErr.message });
-    }
+    // Áudio é preservado por 48h após o processamento para permitir reprocessar
+    // caso a transcrição/organização precise ser revisada. A limpeza periódica
+    // abaixo remove o arquivo depois desse período.
+    await prisma.telehealthSession.update({
+      where: { id: sessionId },
+      data: { status: 'completed', updatedAt: new Date() }
+    });
+    await auditLog(sessionId, 'audio_retained_48h', { reason: 'transcription_completed' });
   } catch (err) {
     const rawError = err?.message || 'Erro desconhecido no processamento';
     const processingError = rawError.includes('Whisper API error: 413')
@@ -858,7 +853,7 @@ async function processTranscription(sessionId, userId, notes = {}) {
       }
     });
     await auditLog(sessionId, 'processing_error', { error: rawError });
-    // Audio is kept for 24h so the user can retry — periodic cleanup handles expiry
+    // Audio is kept for 48h so the user can retry — periodic cleanup handles expiry
   }
 }
 
@@ -893,13 +888,14 @@ router.post('/:id/retry', async (req, res) => {
   }
 });
 
-// Periodic cleanup: delete any audio files older than 24 hours
+// Periodic cleanup: delete any audio files older than 48 hours
+const AUDIO_RETENTION_MS = 48 * 60 * 60 * 1000; // 48h
 setInterval(async () => {
   try {
     const stale = await prisma.telehealthSession.findMany({
       where: {
         audioFileName: { not: null },
-        audioUploadedAt: { lt: new Date(Date.now() - 86400000) } // 24h
+        audioUploadedAt: { lt: new Date(Date.now() - AUDIO_RETENTION_MS) }
       }
     });
     for (const s of stale) {
@@ -909,9 +905,10 @@ setInterval(async () => {
         where: { id: s.id },
         data: { audioFileName: null, audioDeletedAt: new Date(), updatedAt: new Date() }
       });
-      await auditLog(s.id, 'audio_deleted', { reason: 'periodic_cleanup_24h' });
+      await auditLog(s.id, 'audio_deleted', { reason: 'periodic_cleanup_48h' });
     }
   } catch {}
+}, 1800000); // every 30 min
 }, 1800000); // every 30 min
 
 module.exports = router;
