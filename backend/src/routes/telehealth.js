@@ -888,13 +888,14 @@ router.post('/:id/retry', async (req, res) => {
   }
 });
 
-// Periodic cleanup: delete any audio files older than 24 hours
+// Periodic cleanup: delete any audio files older than 48 hours
+const AUDIO_RETENTION_MS = 48 * 60 * 60 * 1000; // 48h
 setInterval(async () => {
   try {
     const stale = await prisma.telehealthSession.findMany({
       where: {
         audioFileName: { not: null },
-        audioUploadedAt: { lt: new Date(Date.now() - 86400000) } // 24h
+        audioUploadedAt: { lt: new Date(Date.now() - AUDIO_RETENTION_MS) }
       }
     });
     for (const s of stale) {
@@ -904,9 +905,10 @@ setInterval(async () => {
         where: { id: s.id },
         data: { audioFileName: null, audioDeletedAt: new Date(), updatedAt: new Date() }
       });
-      await auditLog(s.id, 'audio_deleted', { reason: 'periodic_cleanup_24h' });
+      await auditLog(s.id, 'audio_deleted', { reason: 'periodic_cleanup_48h' });
     }
   } catch {}
+}, 1800000); // every 30 min
 }, 1800000); // every 30 min
 
 module.exports = router;
