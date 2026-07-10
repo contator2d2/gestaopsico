@@ -694,7 +694,9 @@ router.post('/:id/finalize', express.json({ limit: '128kb' }), async (req, res) 
         '-hide_banner', '-loglevel', 'error',
         '-f', 'concat', '-safe', '0',
         '-i', listPath,
-        '-vn', '-ac', '1', '-c:a', 'libopus', '-b:a', '32k',
+        '-vn', '-ac', '1', '-ar', '16000',
+        '-af', 'highpass=f=80,dynaudnorm=f=200:g=15:p=0.9',
+        '-c:a', 'libopus', '-b:a', '64k',
         filePath
       ]);
       try { fs.unlinkSync(listPath); } catch {}
