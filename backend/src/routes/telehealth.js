@@ -152,18 +152,16 @@ async function splitAudioIntoChunks(filePath, segmentSeconds = WHISPER_INITIAL_S
       '-i',
       filePath,
       '-vn',
-      '-ac',
-      '1',
-      '-c:a',
-      'libopus',
-      '-b:a',
-      '32k',
-      '-f',
-      'segment',
-      '-segment_time',
-      String(segmentSeconds),
-      '-reset_timestamps',
-      '1',
+      '-ac', '1',
+      '-ar', '16000',
+      // Normaliza voz: remove rumble grave + comprime dinâmica para elevar
+      // partes baixas. Isso é o que elimina as alucinações "E aí" em silêncio.
+      '-af', 'highpass=f=80,dynaudnorm=f=200:g=15:p=0.9',
+      '-c:a', 'libopus',
+      '-b:a', '64k',
+      '-f', 'segment',
+      '-segment_time', String(segmentSeconds),
+      '-reset_timestamps', '1',
       outputPattern
     ]);
   } catch (err) {
