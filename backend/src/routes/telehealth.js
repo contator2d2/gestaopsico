@@ -61,6 +61,24 @@ function cleanupTempDir(dirPath) {
   } catch {}
 }
 
+// Prompt de contexto clínico — vieses o Whisper a esperar diálogo terapêutico
+// (reduz drasticamente as alucinações "E aí / Obrigado / ...pela atenção").
+const WHISPER_CLINICAL_PROMPT =
+  'Transcrição de sessão de psicoterapia em português do Brasil entre profissional e paciente. ' +
+  'Diálogo natural, com pausas e silêncios. Ignore ruídos de fundo.';
+
+// Post-process: colapsa loops do tipo "E aí E aí E aí..." (>=4 repetições) e
+// remove segmentos que o Whisper claramente inventou em silêncio.
+function sanitizeTranscription(text) {
+  if (!text) return '';
+  let out = text.replace(/\s+/g, ' ').trim();
+  // Colapsa qualquer frase curta repetida 4x ou mais em sequência.
+  out = out.replace(/(\b[^.?!\n]{1,40}?[.?!]?\s+)\1{3,}/gi, '$1');
+  // Colapsa a mesma palavra repetida 4x+ ("aí aí aí aí ...").
+  out = out.replace(/\b(\w{1,20})(\s+\1){3,}\b/gi, '$1');
+  return out.trim();
+}
+
 async function whisperTranscribeOnce(filePath, apiKey, attempt = 1) {
   const FormData = (await import('form-data')).default;
   const fetch = (await import('node-fetch')).default;
@@ -69,7 +87,9 @@ async function whisperTranscribeOnce(filePath, apiKey, attempt = 1) {
   form.append('file', fs.createReadStream(filePath));
   form.append('model', 'whisper-1');
   form.append('language', 'pt');
-  form.append('response_format', 'text');
+  form.append('response_format', 'verbose_json');
+  form.append('temperature', '0');
+  form.append('prompt', WHISPER_CLINICAL_PROMPT);
 
   let resp;
   try {
@@ -96,7 +116,28 @@ async function whisperTranscribeOnce(filePath, apiKey, attempt = 1) {
     }
     throw new Error(`Whisper API error: ${resp.status} - ${errBody}`);
   }
-  return resp.text();
+
+  // verbose_json → filtra segmentos alucinados por baixo score / silêncio
+  let data;
+  try { data = await resp.json(); } catch { return ''; }
+  if (Array.isArray(data.segments) && data.segments.length > 0) {
+    const kept = data.segments
+      .filter(s => {
+        const noSpeech = typeof s.no_speech_prob === 'number' ? s.no_speech_prob : 0;
+        const avgLogprob = typeof s.avg_logprob === 'number' ? s.avg_logprob : 0;
+        const compression = typeof s.compression_ratio === 'number' ? s.compression_ratio : 0;
+        // Alucinação típica: silêncio detectado, baixa confiança, ou texto altamente
+        // repetitivo (compression_ratio alto = mesma frase em loop).
+        if (noSpeech > 0.6) return false;
+        if (avgLogprob < -1) return false;
+        if (compression > 2.4) return false;
+        return s.text && s.text.trim().length > 0;
+      })
+      .map(s => s.text.trim())
+      .join(' ');
+    return sanitizeTranscription(kept);
+  }
+  return sanitizeTranscription(data.text || '');
 }
 
 async function splitAudioIntoChunks(filePath, segmentSeconds = WHISPER_INITIAL_SEGMENT_SECONDS) {
@@ -111,18 +152,16 @@ async function splitAudioIntoChunks(filePath, segmentSeconds = WHISPER_INITIAL_S
       '-i',
       filePath,
       '-vn',
-      '-ac',
-      '1',
-      '-c:a',
-      'libopus',
-      '-b:a',
-      '32k',
-      '-f',
-      'segment',
-      '-segment_time',
-      String(segmentSeconds),
-      '-reset_timestamps',
-      '1',
+      '-ac', '1',
+      '-ar', '16000',
+      // Normaliza voz: remove rumble grave + comprime dinâmica para elevar
+      // partes baixas. Isso é o que elimina as alucinações "E aí" em silêncio.
+      '-af', 'highpass=f=80,dynaudnorm=f=200:g=15:p=0.9',
+      '-c:a', 'libopus',
+      '-b:a', '64k',
+      '-f', 'segment',
+      '-segment_time', String(segmentSeconds),
+      '-reset_timestamps', '1',
       outputPattern
     ]);
   } catch (err) {
@@ -655,7 +694,9 @@ router.post('/:id/finalize', express.json({ limit: '128kb' }), async (req, res) 
         '-hide_banner', '-loglevel', 'error',
         '-f', 'concat', '-safe', '0',
         '-i', listPath,
-        '-vn', '-ac', '1', '-c:a', 'libopus', '-b:a', '32k',
+        '-vn', '-ac', '1', '-ar', '16000',
+        '-af', 'highpass=f=80,dynaudnorm=f=200:g=15:p=0.9',
+        '-c:a', 'libopus', '-b:a', '64k',
         filePath
       ]);
       try { fs.unlinkSync(listPath); } catch {}
