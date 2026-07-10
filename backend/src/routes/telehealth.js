@@ -853,7 +853,7 @@ async function processTranscription(sessionId, userId, notes = {}) {
       }
     });
     await auditLog(sessionId, 'processing_error', { error: rawError });
-    // Audio is kept for 24h so the user can retry — periodic cleanup handles expiry
+    // Audio is kept for 48h so the user can retry — periodic cleanup handles expiry
   }
 }
 
