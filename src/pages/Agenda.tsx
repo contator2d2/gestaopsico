@@ -143,8 +143,6 @@ export default function Agenda() {
   const isSecretary = role === "secretary";
   const isAdmin = role === "admin" || role === "superadmin";
   const canCreateForOthers = isSecretary || isAdmin;
-  // eslint-disable-next-line prefer-const
-  let showProfessionalColorsFlag = canCreateForOthers;
 
 
   const [selectedDate, setSelectedDate] = useState(new Date());
