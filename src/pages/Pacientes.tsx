@@ -446,6 +446,23 @@ export default function Pacientes() {
             </TabsList>
 
             <TabsContent value="pessoal" className="space-y-4 mt-4">
+              {canPickProfessional && !editingId && (
+                <div>
+                  <Label>Profissional responsável *</Label>
+                  <Select
+                    value={(form as any).professional_id || ""}
+                    onValueChange={v => set("professional_id", v)}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Selecione o profissional" /></SelectTrigger>
+                    <SelectContent>
+                      {(Array.isArray(professionals) ? professionals : []).map((p: any) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">Este paciente ficará vinculado ao profissional selecionado. Cada profissional vê apenas o prontuário dos seus pacientes.</p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Nome Completo *</Label>
