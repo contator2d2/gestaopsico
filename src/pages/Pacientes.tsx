@@ -274,6 +274,15 @@ export default function Pacientes() {
     queryKey: ["org-settings"],
     queryFn: () => orgSettingsApi.get(),
   });
+  const sharedAgenda = !!orgSettings?.sharedAgenda;
+  const canPickProfessional = isSecretaryOrAdmin || sharedAgenda;
+
+  const { data: professionals = [] } = useQuery<any[]>({
+    queryKey: ["professionals"],
+    queryFn: () => apiRequest<any[]>("/settings/professionals"),
+    enabled: canPickProfessional,
+  });
+
   const portalSlug = orgSettings?.portalSlug;
   const portalUrl = portalSlug
     ? `${window.location.origin}/p/${portalSlug}`
