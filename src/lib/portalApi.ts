@@ -234,6 +234,7 @@ export interface OrgSettings {
   sessionDuration?: number;
   bookingWeekdays?: string;
   timezone?: string;
+  sharedAgenda?: boolean;
 }
 
 export const orgSettingsApi = {
