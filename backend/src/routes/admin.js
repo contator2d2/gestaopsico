@@ -180,7 +180,12 @@ router.post('/users', async (req, res) => {
       const org = await prisma.organization.findUnique({ where: { id: organizationId } });
       if (!org) return res.status(404).json({ error: 'Organização não encontrada' });
 
-      const userCount = await prisma.user.count({ where: { organizationId } });
+      const userCount = await prisma.user.count({
+        where: {
+          organizationId,
+          role: { in: ['professional', 'secretary', 'financial', 'secretary_financial', 'admin'] },
+        },
+      });
       if (userCount >= org.maxUsers) {
         return res.status(400).json({ error: `Limite de ${org.maxUsers} usuários atingido nesta organização` });
       }
