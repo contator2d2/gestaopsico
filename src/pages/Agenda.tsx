@@ -144,6 +144,7 @@ export default function Agenda() {
   const isAdmin = role === "admin" || role === "superadmin";
   const canCreateForOthers = isSecretary || isAdmin;
 
+
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -221,6 +222,7 @@ export default function Agenda() {
 
   const businessStartHour = orgSettings?.scheduleStartHour ?? 8;
   const businessEndHour = orgSettings?.scheduleEndHour ?? 19;
+  const showProfessionalColorsFlag = canCreateForOthers || !!orgSettings?.sharedAgenda;
 
   const businessHours = useMemo(() => {
     return Array.from({ length: businessEndHour - businessStartHour + 1 }, (_, i) => i + businessStartHour);
@@ -602,7 +604,7 @@ export default function Agenda() {
           aptsByDate={aptsByDate}
           onSelectDate={(d) => { setSelectedDate(d); setViewMode("day"); }}
           professionalColorMap={professionalColorMap}
-          showProfessionalColors={canCreateForOthers}
+          showProfessionalColors={showProfessionalColorsFlag}
         />
       ) : viewMode === "week" ? (
         <WeekView
@@ -614,7 +616,7 @@ export default function Agenda() {
           onSelectApt={openViewDialog}
           businessHours={businessHours}
           professionalColorMap={professionalColorMap}
-          showProfessionalColors={canCreateForOthers}
+          showProfessionalColors={showProfessionalColorsFlag}
           professionals={professionals}
         />
       ) : viewMode === "pipeline" ? (
@@ -623,7 +625,7 @@ export default function Agenda() {
           appointments={pipelineAppointments}
           professionalsById={professionalsById}
           professionalColorMap={professionalColorMap}
-          showProfessionalColors={canCreateForOthers}
+          showProfessionalColors={showProfessionalColorsFlag}
           pipelineFilter={pipelineFilter}
           onFilterChange={setPipelineFilter}
           customStart={pipelineCustomStart}
@@ -641,7 +643,7 @@ export default function Agenda() {
           onSelectApt={openViewDialog}
           businessHours={businessHours}
           professionalColorMap={professionalColorMap}
-          showProfessionalColors={canCreateForOthers}
+          showProfessionalColors={showProfessionalColorsFlag}
         />
       )}
 
