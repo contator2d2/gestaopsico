@@ -13,9 +13,10 @@ router.use(professionalGuard);
 // GET /api/team - list users in the same organization
 router.get('/', async (req, res) => {
   try {
-    const where = {};
+    const where = { role: { in: ['professional', 'secretary', 'financial', 'secretary_financial', 'admin'] } };
     if (req.userOrgId) where.organizationId = req.userOrgId;
     else return res.json({ data: [], total: 0 });
+
 
     const [data, total] = await Promise.all([
       prisma.user.findMany({
