@@ -222,6 +222,7 @@ export default function Agenda() {
 
   const businessStartHour = orgSettings?.scheduleStartHour ?? 8;
   const businessEndHour = orgSettings?.scheduleEndHour ?? 19;
+  const showProfessionalColorsFlag = canCreateForOthers || !!orgSettings?.sharedAgenda;
 
   const businessHours = useMemo(() => {
     return Array.from({ length: businessEndHour - businessStartHour + 1 }, (_, i) => i + businessStartHour);
