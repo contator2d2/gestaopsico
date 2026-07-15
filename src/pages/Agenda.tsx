@@ -209,27 +209,38 @@ export default function Agenda() {
     }
   }, [selectedDate, viewMode, dateStr, pipelineFilter, pipelineCustomStart, pipelineCustomEnd]);
 
-  const { data: professionals = [] } = useQuery<any[]>({
-    queryKey: ["professionals"],
-    queryFn: () => apiRequest<any[]>("/settings/professionals"),
-    enabled: canCreateForOthers,
-  });
-
   const { data: orgSettings } = useQuery({
     queryKey: ["org-settings"],
     queryFn: () => orgSettingsApi.get(),
   });
 
+  const sharedAgenda = !!orgSettings?.sharedAgenda;
+  const canPickProfessional = canCreateForOthers || sharedAgenda;
+
+  const { data: professionals = [] } = useQuery<any[]>({
+    queryKey: ["professionals"],
+    queryFn: () => apiRequest<any[]>("/settings/professionals"),
+    enabled: canPickProfessional,
+  });
+
+  // Default the professional filter to the current user when a professional is
+  // using a shared agenda (so their own agenda shows first, but they can switch).
+  useEffect(() => {
+    if (sharedAgenda && !canCreateForOthers && !selectedProfessional && user?.id) {
+      setSelectedProfessional(user.id);
+    }
+  }, [sharedAgenda, canCreateForOthers, selectedProfessional, user?.id]);
+
   const businessStartHour = orgSettings?.scheduleStartHour ?? 8;
   const businessEndHour = orgSettings?.scheduleEndHour ?? 19;
-  const showProfessionalColorsFlag = canCreateForOthers || !!orgSettings?.sharedAgenda;
+  const showProfessionalColorsFlag = canCreateForOthers || sharedAgenda;
 
   const businessHours = useMemo(() => {
     return Array.from({ length: businessEndHour - businessStartHour + 1 }, (_, i) => i + businessStartHour);
   }, [businessStartHour, businessEndHour]);
 
   const queryParams: Record<string, string> = { ...dateRange };
-  if (canCreateForOthers && selectedProfessional && selectedProfessional !== "all") {
+  if (canPickProfessional && selectedProfessional && selectedProfessional !== "all") {
     queryParams.professional_id = selectedProfessional;
   }
   const { data: appointments = [], isLoading } = useAppointments(queryParams);
