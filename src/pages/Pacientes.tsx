@@ -86,6 +86,9 @@ const emptyForm = (): Partial<Patient> => ({
 export default function Pacientes() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const role = user?.role || "professional";
+  const isSecretaryOrAdmin = role === "secretary" || role === "admin" || role === "superadmin" || role === "secretary_financial";
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
