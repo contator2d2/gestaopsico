@@ -29,7 +29,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { patientPortalApi, orgSettingsApi } from "@/lib/portalApi";
-import { pacientesApi, type Patient } from "@/lib/api";
+import { pacientesApi, apiRequest, type Patient } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 // CPF validation (client-side)
