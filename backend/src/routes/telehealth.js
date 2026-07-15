@@ -909,6 +909,5 @@ setInterval(async () => {
     }
   } catch {}
 }, 1800000); // every 30 min
-}, 1800000); // every 30 min
 
 module.exports = router;
