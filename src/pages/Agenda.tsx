@@ -604,7 +604,7 @@ export default function Agenda() {
           aptsByDate={aptsByDate}
           onSelectDate={(d) => { setSelectedDate(d); setViewMode("day"); }}
           professionalColorMap={professionalColorMap}
-          showProfessionalColors={canCreateForOthers}
+          showProfessionalColors={showProfessionalColorsFlag}
         />
       ) : viewMode === "week" ? (
         <WeekView
@@ -616,7 +616,7 @@ export default function Agenda() {
           onSelectApt={openViewDialog}
           businessHours={businessHours}
           professionalColorMap={professionalColorMap}
-          showProfessionalColors={canCreateForOthers}
+          showProfessionalColors={showProfessionalColorsFlag}
           professionals={professionals}
         />
       ) : viewMode === "pipeline" ? (
@@ -625,7 +625,7 @@ export default function Agenda() {
           appointments={pipelineAppointments}
           professionalsById={professionalsById}
           professionalColorMap={professionalColorMap}
-          showProfessionalColors={canCreateForOthers}
+          showProfessionalColors={showProfessionalColorsFlag}
           pipelineFilter={pipelineFilter}
           onFilterChange={setPipelineFilter}
           customStart={pipelineCustomStart}
@@ -643,7 +643,7 @@ export default function Agenda() {
           onSelectApt={openViewDialog}
           businessHours={businessHours}
           professionalColorMap={professionalColorMap}
-          showProfessionalColors={canCreateForOthers}
+          showProfessionalColors={showProfessionalColorsFlag}
         />
       )}
 
