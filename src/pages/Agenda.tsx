@@ -451,7 +451,7 @@ export default function Agenda() {
     const catLabel = blockCategories.find(c => c.value === blockCategory)?.label || blockCategory;
     const note = blockReason ? `[${catLabel}] ${blockReason}` : catLabel;
     const baseData: any = { time: blockTime, duration: blockDuration, notes: note };
-    if (canCreateForOthers && selectedProfessional && selectedProfessional !== "all") baseData.professional_id = selectedProfessional;
+    if (canPickProfessional && selectedProfessional && selectedProfessional !== "all") baseData.professional_id = selectedProfessional;
 
     if (blockMode === "single") {
       blockMutation.mutate({ ...baseData, date: dateStr });
@@ -577,7 +577,7 @@ export default function Agenda() {
         </div>
       </div>
 
-      {canCreateForOthers && (
+      {canPickProfessional && (
         <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
           <Filter className="w-4 h-4 text-muted-foreground" />
           <Label className="text-sm font-medium">Profissional:</Label>
@@ -665,7 +665,7 @@ export default function Agenda() {
             <DialogDescription>Agende uma nova consulta</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
-            {canCreateForOthers && (
+            {canPickProfessional && (
               <div>
                 <Label>Profissional *</Label>
                 <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
@@ -804,7 +804,7 @@ export default function Agenda() {
             <DialogDescription>Bloqueie horários — pontual, período ou recorrente</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            {canCreateForOthers && (
+            {canPickProfessional && (
               <div>
                 <Label>Profissional</Label>
                 <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
