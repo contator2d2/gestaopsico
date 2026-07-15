@@ -144,6 +144,7 @@ export default function Agenda() {
   const isAdmin = role === "admin" || role === "superadmin";
   const canCreateForOthers = isSecretary || isAdmin;
 
+
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [dialogOpen, setDialogOpen] = useState(false);
