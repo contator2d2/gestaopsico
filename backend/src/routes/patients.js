@@ -313,13 +313,30 @@ router.get('/validate-cpf/:cpf', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const data = mapInput(req.body);
-    // Admin can assign to a specific professional; otherwise defaults to self
-    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true } });
-    if (req.body.professional_id && ['superadmin', 'admin', 'secretary', 'secretary_financial'].includes(user?.role)) {
-      data.professionalId = req.body.professional_id;
-    } else {
-      data.professionalId = req.userId;
+    // Admin/secretary can always assign to a specific professional.
+    // Professionals can assign to any professional of the same org when the
+    // clinic has shared agenda enabled.
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true, organizationId: true } });
+    const targetProfessionalId = req.body.professional_id;
+    let allowAssign = false;
+    if (targetProfessionalId) {
+      if (['superadmin', 'admin', 'secretary', 'secretary_financial'].includes(user?.role)) {
+        allowAssign = true;
+      } else if (user?.role === 'professional' && user.organizationId) {
+        const settings = await prisma.organizationSetting.findUnique({
+          where: { organizationId: user.organizationId },
+          select: { sharedAgenda: true },
+        });
+        if (settings?.sharedAgenda) {
+          const target = await prisma.user.findFirst({
+            where: { id: targetProfessionalId, organizationId: user.organizationId },
+            select: { id: true },
+          });
+          allowAssign = !!target;
+        }
+      }
     }
+    data.professionalId = allowAssign ? targetProfessionalId : req.userId;
     if (!data.name) return res.status(400).json({ error: 'Nome é obrigatório' });
     if (data.cpf && !isValidCPF(data.cpf)) return res.status(400).json({ error: 'CPF inválido' });
     const patient = await prisma.patient.create({ data });
