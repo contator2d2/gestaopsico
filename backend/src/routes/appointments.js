@@ -84,10 +84,34 @@ function isOverlapping(time1, duration1, time2, duration2) {
   return start1 < end2 && start2 < end1;
 }
 
-async function findConflicts(professionalId, date, time, duration, excludeId = null) {
+async function getSharedProfessionalIds(userId) {
+  // Returns [userId] normally, or all professional user IDs in the same org
+  // when shared_agenda is enabled on organization_settings.
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { organizationId: true },
+  });
+  if (!user?.organizationId) return { ids: [userId], shared: false, orgId: null };
+  const settings = await prisma.organizationSetting.findUnique({
+    where: { organizationId: user.organizationId },
+    select: { sharedAgenda: true },
+  });
+  if (!settings?.sharedAgenda) return { ids: [userId], shared: false, orgId: user.organizationId };
+  const teammates = await prisma.user.findMany({
+    where: { organizationId: user.organizationId, status: 'active' },
+    select: { id: true },
+  });
+  const ids = teammates.map(u => u.id);
+  return { ids: ids.length ? ids : [userId], shared: true, orgId: user.organizationId };
+}
+
+async function findConflicts(professionalId, date, time, duration, excludeId = null, extraProfessionalIds = null) {
+  const professionalFilter = extraProfessionalIds && extraProfessionalIds.length
+    ? { in: extraProfessionalIds }
+    : professionalId;
   const appointments = await prisma.appointment.findMany({
     where: {
-      professionalId,
+      professionalId: professionalFilter,
       date: new Date(date),
       status: { not: 'cancelled' },
       id: excludeId ? { not: excludeId } : undefined,
@@ -120,7 +144,17 @@ function generateRecurringDates(startDate, frequency, durationMonths) {
 router.get('/', async (req, res) => {
   try {
     const { date, status, professional_id, startDate, endDate, patientId, coupleId } = req.query;
-    const where = { professionalId: professional_id || req.userId };
+    const { ids: sharedIds, shared } = await getSharedProfessionalIds(req.userId);
+
+    const where = {};
+    if (professional_id && professional_id !== 'all') {
+      // Explicit professional filter; must belong to the shared pool
+      where.professionalId = sharedIds.includes(professional_id) ? professional_id : req.userId;
+    } else if (shared) {
+      where.professionalId = { in: sharedIds };
+    } else {
+      where.professionalId = req.userId;
+    }
     if (status) where.status = status;
     if (patientId) where.patientId = patientId;
     if (coupleId) where.coupleId = coupleId;
@@ -138,7 +172,8 @@ router.get('/', async (req, res) => {
       where,
       include: {
         patient: { select: { id: true, name: true } },
-        couple: { select: { id: true, name: true } }
+        couple: { select: { id: true, name: true } },
+        professional: { select: { id: true, name: true } },
       },
       orderBy: [{ date: 'asc' }, { time: 'asc' }]
     });
@@ -151,13 +186,15 @@ router.get('/', async (req, res) => {
 // GET /api/consultas/:id
 router.get('/:id', async (req, res) => {
   try {
+    const { ids: sharedIds } = await getSharedProfessionalIds(req.userId);
     const appointment = await prisma.appointment.findFirst({
-      where: { id: req.params.id, professionalId: req.userId },
+      where: { id: req.params.id, professionalId: { in: sharedIds } },
       include: {
         patient: true,
         couple: { include: { patient1: true, patient2: true } },
         records: true,
-        transcriptions: true
+        transcriptions: true,
+        professional: { select: { id: true, name: true } },
       }
     });
     if (!appointment) return res.status(404).json({ error: 'Consulta não encontrada' });
@@ -177,14 +214,18 @@ router.post('/', async (req, res) => {
     }
 
     const { recurring, recurrenceFrequency, recurrenceDuration } = req.body;
+    const { ids: sharedIds, shared } = await getSharedProfessionalIds(req.userId);
+    const conflictProIds = shared ? sharedIds : null;
 
-    // Check conflict for the primary appointment
-    const conflicts = await findConflicts(data.professionalId, data.date, data.time, data.duration);
+    // Check conflict for the primary appointment (across shared agenda when enabled)
+    const conflicts = await findConflicts(data.professionalId, data.date, data.time, data.duration, null, conflictProIds);
     if (conflicts.length > 0) {
-      return res.status(409).json({ 
-        error: 'Conflito de agenda', 
-        details: 'Já existe um agendamento para este horário.',
-        conflicts 
+      return res.status(409).json({
+        error: 'Conflito de agenda',
+        details: shared
+          ? 'Este horário já está ocupado na agenda compartilhada da clínica.'
+          : 'Já existe um agendamento para este horário.',
+        conflicts
       });
     }
 
@@ -195,7 +236,7 @@ router.post('/', async (req, res) => {
       const allConflicts = [];
       for (const rDate of recurringDates) {
         const dateStr = rDate.toISOString().split('T')[0];
-        const c = await findConflicts(data.professionalId, dateStr, data.time, data.duration);
+        const c = await findConflicts(data.professionalId, dateStr, data.time, data.duration, null, conflictProIds);
         if (c.length > 0) {
           allConflicts.push({ date: dateStr, conflicts: c });
         }
@@ -258,20 +299,28 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ error: validationError });
     }
 
-    // Check conflict (excluding current appointment)
+    // Check conflict (excluding current appointment); include shared agenda scope
+    const { ids: sharedIds, shared } = await getSharedProfessionalIds(req.userId);
     if (data.date && data.time && data.duration) {
-      const conflicts = await findConflicts(data.professionalId || req.userId, data.date, data.time, data.duration, req.params.id);
+      const conflicts = await findConflicts(
+        data.professionalId || req.userId,
+        data.date, data.time, data.duration,
+        req.params.id,
+        shared ? sharedIds : null,
+      );
       if (conflicts.length > 0) {
-        return res.status(409).json({ 
-          error: 'Conflito de agenda', 
-          details: 'Já existe um agendamento para este horário.',
-          conflicts 
+        return res.status(409).json({
+          error: 'Conflito de agenda',
+          details: shared
+            ? 'Este horário já está ocupado na agenda compartilhada da clínica.'
+            : 'Já existe um agendamento para este horário.',
+          conflicts
         });
       }
     }
 
     const appointment = await prisma.appointment.updateMany({
-      where: { id: req.params.id, professionalId: req.userId },
+      where: { id: req.params.id, professionalId: { in: sharedIds } },
       data
     });
     if (appointment.count === 0) return res.status(404).json({ error: 'Consulta não encontrada' });
