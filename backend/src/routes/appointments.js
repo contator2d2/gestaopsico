@@ -84,10 +84,34 @@ function isOverlapping(time1, duration1, time2, duration2) {
   return start1 < end2 && start2 < end1;
 }
 
-async function findConflicts(professionalId, date, time, duration, excludeId = null) {
+async function getSharedProfessionalIds(userId) {
+  // Returns [userId] normally, or all professional user IDs in the same org
+  // when shared_agenda is enabled on organization_settings.
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { organizationId: true },
+  });
+  if (!user?.organizationId) return { ids: [userId], shared: false, orgId: null };
+  const settings = await prisma.organizationSetting.findUnique({
+    where: { organizationId: user.organizationId },
+    select: { sharedAgenda: true },
+  });
+  if (!settings?.sharedAgenda) return { ids: [userId], shared: false, orgId: user.organizationId };
+  const teammates = await prisma.user.findMany({
+    where: { organizationId: user.organizationId, status: 'active' },
+    select: { id: true },
+  });
+  const ids = teammates.map(u => u.id);
+  return { ids: ids.length ? ids : [userId], shared: true, orgId: user.organizationId };
+}
+
+async function findConflicts(professionalId, date, time, duration, excludeId = null, extraProfessionalIds = null) {
+  const professionalFilter = extraProfessionalIds && extraProfessionalIds.length
+    ? { in: extraProfessionalIds }
+    : professionalId;
   const appointments = await prisma.appointment.findMany({
     where: {
-      professionalId,
+      professionalId: professionalFilter,
       date: new Date(date),
       status: { not: 'cancelled' },
       id: excludeId ? { not: excludeId } : undefined,
