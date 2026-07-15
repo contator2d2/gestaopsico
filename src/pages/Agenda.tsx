@@ -410,7 +410,7 @@ export default function Agenda() {
   };
 
   const handleSubmit = () => {
-    if (canCreateForOthers && (!selectedProfessional || selectedProfessional === "all")) {
+    if (canPickProfessional && (!selectedProfessional || selectedProfessional === "all")) {
       toast({ title: "Selecione o profissional", variant: "destructive" });
       return;
     }
@@ -428,7 +428,7 @@ export default function Agenda() {
     }
 
     const payload = { ...form };
-    if (canCreateForOthers && selectedProfessional && selectedProfessional !== "all") {
+    if (canPickProfessional && selectedProfessional && selectedProfessional !== "all") {
       (payload as any).professional_id = selectedProfessional;
     }
     createMutation.mutate(payload);
