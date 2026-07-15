@@ -181,11 +181,24 @@ router.get('/', async (req, res) => {
 
     const where = {};
 
+    // Determine if the professional's org uses a shared agenda (single-room clinics)
+    let sharedAgenda = false;
+    if (user?.role === 'professional' && user.organizationId) {
+      const s = await prisma.organizationSetting.findUnique({
+        where: { organizationId: user.organizationId },
+        select: { sharedAgenda: true },
+      });
+      sharedAgenda = !!s?.sharedAgenda;
+    }
+
     // Role-based filtering — everyone only sees patients from their own organization
     if (user && ['superadmin', 'admin', 'secretary', 'financial', 'secretary_financial'].includes(user.role)) {
       if (user.organizationId) {
         where.professional = { organizationId: user.organizationId };
       }
+    } else if (sharedAgenda && user.organizationId) {
+      // Shared agenda: professional can see every patient of the clinic
+      where.professional = { organizationId: user.organizationId };
     } else {
       // professional sees only their own patients (or if user not found, they see nothing)
       where.professionalId = req.userId;
@@ -226,11 +239,24 @@ router.get('/:id', async (req, res) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true, organizationId: true } });
     const whereClause = { id: req.params.id };
-    // Restrict by organization for all admin-level roles, by professional for others
+
+    let sharedAgenda = false;
+    if (user?.role === 'professional' && user.organizationId) {
+      const s = await prisma.organizationSetting.findUnique({
+        where: { organizationId: user.organizationId },
+        select: { sharedAgenda: true },
+      });
+      sharedAgenda = !!s?.sharedAgenda;
+    }
+
+    // Restrict by organization for admin-level roles or shared-agenda professionals,
+    // by professional for solo professionals.
     if (['superadmin', 'admin', 'secretary', 'financial', 'secretary_financial'].includes(user?.role)) {
       if (user.organizationId) {
         whereClause.professional = { organizationId: user.organizationId };
       }
+    } else if (sharedAgenda && user.organizationId) {
+      whereClause.professional = { organizationId: user.organizationId };
     } else {
       whereClause.professionalId = req.userId;
     }
@@ -287,13 +313,30 @@ router.get('/validate-cpf/:cpf', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const data = mapInput(req.body);
-    // Admin can assign to a specific professional; otherwise defaults to self
-    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true } });
-    if (req.body.professional_id && ['superadmin', 'admin', 'secretary', 'secretary_financial'].includes(user?.role)) {
-      data.professionalId = req.body.professional_id;
-    } else {
-      data.professionalId = req.userId;
+    // Admin/secretary can always assign to a specific professional.
+    // Professionals can assign to any professional of the same org when the
+    // clinic has shared agenda enabled.
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true, organizationId: true } });
+    const targetProfessionalId = req.body.professional_id;
+    let allowAssign = false;
+    if (targetProfessionalId) {
+      if (['superadmin', 'admin', 'secretary', 'secretary_financial'].includes(user?.role)) {
+        allowAssign = true;
+      } else if (user?.role === 'professional' && user.organizationId) {
+        const settings = await prisma.organizationSetting.findUnique({
+          where: { organizationId: user.organizationId },
+          select: { sharedAgenda: true },
+        });
+        if (settings?.sharedAgenda) {
+          const target = await prisma.user.findFirst({
+            where: { id: targetProfessionalId, organizationId: user.organizationId },
+            select: { id: true },
+          });
+          allowAssign = !!target;
+        }
+      }
     }
+    data.professionalId = allowAssign ? targetProfessionalId : req.userId;
     if (!data.name) return res.status(400).json({ error: 'Nome é obrigatório' });
     if (data.cpf && !isValidCPF(data.cpf)) return res.status(400).json({ error: 'CPF inválido' });
     const patient = await prisma.patient.create({ data });

@@ -209,27 +209,38 @@ export default function Agenda() {
     }
   }, [selectedDate, viewMode, dateStr, pipelineFilter, pipelineCustomStart, pipelineCustomEnd]);
 
-  const { data: professionals = [] } = useQuery<any[]>({
-    queryKey: ["professionals"],
-    queryFn: () => apiRequest<any[]>("/settings/professionals"),
-    enabled: canCreateForOthers,
-  });
-
   const { data: orgSettings } = useQuery({
     queryKey: ["org-settings"],
     queryFn: () => orgSettingsApi.get(),
   });
 
+  const sharedAgenda = !!orgSettings?.sharedAgenda;
+  const canPickProfessional = canCreateForOthers || sharedAgenda;
+
+  const { data: professionals = [] } = useQuery<any[]>({
+    queryKey: ["professionals"],
+    queryFn: () => apiRequest<any[]>("/settings/professionals"),
+    enabled: canPickProfessional,
+  });
+
+  // Default the professional filter to the current user when a professional is
+  // using a shared agenda (so their own agenda shows first, but they can switch).
+  useEffect(() => {
+    if (sharedAgenda && !canCreateForOthers && !selectedProfessional && user?.id) {
+      setSelectedProfessional(user.id);
+    }
+  }, [sharedAgenda, canCreateForOthers, selectedProfessional, user?.id]);
+
   const businessStartHour = orgSettings?.scheduleStartHour ?? 8;
   const businessEndHour = orgSettings?.scheduleEndHour ?? 19;
-  const showProfessionalColorsFlag = canCreateForOthers || !!orgSettings?.sharedAgenda;
+  const showProfessionalColorsFlag = canCreateForOthers || sharedAgenda;
 
   const businessHours = useMemo(() => {
     return Array.from({ length: businessEndHour - businessStartHour + 1 }, (_, i) => i + businessStartHour);
   }, [businessStartHour, businessEndHour]);
 
   const queryParams: Record<string, string> = { ...dateRange };
-  if (canCreateForOthers && selectedProfessional && selectedProfessional !== "all") {
+  if (canPickProfessional && selectedProfessional && selectedProfessional !== "all") {
     queryParams.professional_id = selectedProfessional;
   }
   const { data: appointments = [], isLoading } = useAppointments(queryParams);
@@ -399,7 +410,7 @@ export default function Agenda() {
   };
 
   const handleSubmit = () => {
-    if (canCreateForOthers && (!selectedProfessional || selectedProfessional === "all")) {
+    if (canPickProfessional && (!selectedProfessional || selectedProfessional === "all")) {
       toast({ title: "Selecione o profissional", variant: "destructive" });
       return;
     }
@@ -417,7 +428,7 @@ export default function Agenda() {
     }
 
     const payload = { ...form };
-    if (canCreateForOthers && selectedProfessional && selectedProfessional !== "all") {
+    if (canPickProfessional && selectedProfessional && selectedProfessional !== "all") {
       (payload as any).professional_id = selectedProfessional;
     }
     createMutation.mutate(payload);
@@ -440,7 +451,7 @@ export default function Agenda() {
     const catLabel = blockCategories.find(c => c.value === blockCategory)?.label || blockCategory;
     const note = blockReason ? `[${catLabel}] ${blockReason}` : catLabel;
     const baseData: any = { time: blockTime, duration: blockDuration, notes: note };
-    if (canCreateForOthers && selectedProfessional && selectedProfessional !== "all") baseData.professional_id = selectedProfessional;
+    if (canPickProfessional && selectedProfessional && selectedProfessional !== "all") baseData.professional_id = selectedProfessional;
 
     if (blockMode === "single") {
       blockMutation.mutate({ ...baseData, date: dateStr });
@@ -566,7 +577,7 @@ export default function Agenda() {
         </div>
       </div>
 
-      {canCreateForOthers && (
+      {canPickProfessional && (
         <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border border-border">
           <Filter className="w-4 h-4 text-muted-foreground" />
           <Label className="text-sm font-medium">Profissional:</Label>
@@ -654,7 +665,7 @@ export default function Agenda() {
             <DialogDescription>Agende uma nova consulta</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
-            {canCreateForOthers && (
+            {canPickProfessional && (
               <div>
                 <Label>Profissional *</Label>
                 <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
@@ -793,7 +804,7 @@ export default function Agenda() {
             <DialogDescription>Bloqueie horários — pontual, período ou recorrente</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            {canCreateForOthers && (
+            {canPickProfessional && (
               <div>
                 <Label>Profissional</Label>
                 <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>

@@ -29,7 +29,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { patientPortalApi, orgSettingsApi } from "@/lib/portalApi";
-import { pacientesApi, type Patient } from "@/lib/api";
+import { pacientesApi, apiRequest, type Patient } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 // CPF validation (client-side)
@@ -85,6 +86,9 @@ const emptyForm = (): Partial<Patient> => ({
 export default function Pacientes() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const role = user?.role || "professional";
+  const isSecretaryOrAdmin = role === "secretary" || role === "admin" || role === "superadmin" || role === "secretary_financial";
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -270,6 +274,15 @@ export default function Pacientes() {
     queryKey: ["org-settings"],
     queryFn: () => orgSettingsApi.get(),
   });
+  const sharedAgenda = !!orgSettings?.sharedAgenda;
+  const canPickProfessional = isSecretaryOrAdmin || sharedAgenda;
+
+  const { data: professionals = [] } = useQuery<any[]>({
+    queryKey: ["professionals"],
+    queryFn: () => apiRequest<any[]>("/settings/professionals"),
+    enabled: canPickProfessional,
+  });
+
   const portalSlug = orgSettings?.portalSlug;
   const portalUrl = portalSlug
     ? `${window.location.origin}/p/${portalSlug}`
@@ -433,6 +446,23 @@ export default function Pacientes() {
             </TabsList>
 
             <TabsContent value="pessoal" className="space-y-4 mt-4">
+              {canPickProfessional && !editingId && (
+                <div>
+                  <Label>Profissional responsável *</Label>
+                  <Select
+                    value={(form as any).professional_id || ""}
+                    onValueChange={v => set("professional_id", v)}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Selecione o profissional" /></SelectTrigger>
+                    <SelectContent>
+                      {(Array.isArray(professionals) ? professionals : []).map((p: any) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">Este paciente ficará vinculado ao profissional selecionado. Cada profissional vê apenas o prontuário dos seus pacientes.</p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Nome Completo *</Label>
