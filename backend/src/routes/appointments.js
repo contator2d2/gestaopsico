@@ -144,7 +144,17 @@ function generateRecurringDates(startDate, frequency, durationMonths) {
 router.get('/', async (req, res) => {
   try {
     const { date, status, professional_id, startDate, endDate, patientId, coupleId } = req.query;
-    const where = { professionalId: professional_id || req.userId };
+    const { ids: sharedIds, shared } = await getSharedProfessionalIds(req.userId);
+
+    const where = {};
+    if (professional_id && professional_id !== 'all') {
+      // Explicit professional filter; must belong to the shared pool
+      where.professionalId = sharedIds.includes(professional_id) ? professional_id : req.userId;
+    } else if (shared) {
+      where.professionalId = { in: sharedIds };
+    } else {
+      where.professionalId = req.userId;
+    }
     if (status) where.status = status;
     if (patientId) where.patientId = patientId;
     if (coupleId) where.coupleId = coupleId;
@@ -162,7 +172,8 @@ router.get('/', async (req, res) => {
       where,
       include: {
         patient: { select: { id: true, name: true } },
-        couple: { select: { id: true, name: true } }
+        couple: { select: { id: true, name: true } },
+        professional: { select: { id: true, name: true } },
       },
       orderBy: [{ date: 'asc' }, { time: 'asc' }]
     });
@@ -175,13 +186,15 @@ router.get('/', async (req, res) => {
 // GET /api/consultas/:id
 router.get('/:id', async (req, res) => {
   try {
+    const { ids: sharedIds } = await getSharedProfessionalIds(req.userId);
     const appointment = await prisma.appointment.findFirst({
-      where: { id: req.params.id, professionalId: req.userId },
+      where: { id: req.params.id, professionalId: { in: sharedIds } },
       include: {
         patient: true,
         couple: { include: { patient1: true, patient2: true } },
         records: true,
-        transcriptions: true
+        transcriptions: true,
+        professional: { select: { id: true, name: true } },
       }
     });
     if (!appointment) return res.status(404).json({ error: 'Consulta não encontrada' });
