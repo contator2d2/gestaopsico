@@ -181,11 +181,24 @@ router.get('/', async (req, res) => {
 
     const where = {};
 
+    // Determine if the professional's org uses a shared agenda (single-room clinics)
+    let sharedAgenda = false;
+    if (user?.role === 'professional' && user.organizationId) {
+      const s = await prisma.organizationSetting.findUnique({
+        where: { organizationId: user.organizationId },
+        select: { sharedAgenda: true },
+      });
+      sharedAgenda = !!s?.sharedAgenda;
+    }
+
     // Role-based filtering — everyone only sees patients from their own organization
     if (user && ['superadmin', 'admin', 'secretary', 'financial', 'secretary_financial'].includes(user.role)) {
       if (user.organizationId) {
         where.professional = { organizationId: user.organizationId };
       }
+    } else if (sharedAgenda && user.organizationId) {
+      // Shared agenda: professional can see every patient of the clinic
+      where.professional = { organizationId: user.organizationId };
     } else {
       // professional sees only their own patients (or if user not found, they see nothing)
       where.professionalId = req.userId;
