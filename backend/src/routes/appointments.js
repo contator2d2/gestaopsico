@@ -152,16 +152,15 @@ function generateRecurringDates(startDate, frequency, durationMonths) {
 router.get('/', async (req, res) => {
   try {
     const { date, status, professional_id, startDate, endDate, patientId, coupleId } = req.query;
-    const { ids: sharedIds, shared } = await getSharedProfessionalIds(req.userId);
+    const { ids: sharedIds } = await getSharedProfessionalIds(req.userId);
 
     const where = {};
     if (professional_id && professional_id !== 'all') {
-      // Explicit professional filter; must belong to the shared pool
+      // Explicit professional filter; must belong to the org pool
       where.professionalId = sharedIds.includes(professional_id) ? professional_id : req.userId;
-    } else if (shared) {
-      where.professionalId = { in: sharedIds };
     } else {
-      where.professionalId = req.userId;
+      // Show all org professionals' agenda (multi-pro clinic visibility)
+      where.professionalId = { in: sharedIds };
     }
     if (status) where.status = status;
     if (patientId) where.patientId = patientId;
