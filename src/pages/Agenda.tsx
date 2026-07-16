@@ -215,25 +215,29 @@ export default function Agenda() {
   });
 
   const sharedAgenda = !!orgSettings?.sharedAgenda;
-  const canPickProfessional = canCreateForOthers || sharedAgenda;
 
+  // Load professionals whenever we have a user — used to know if the org has
+  // more than one professional (multi-pro view) even without shared agenda.
   const { data: professionals = [] } = useQuery<any[]>({
     queryKey: ["professionals"],
     queryFn: () => apiRequest<any[]>("/settings/professionals"),
-    enabled: canPickProfessional,
+    enabled: !!user?.id,
   });
 
+  const hasMultipleProfessionals = Array.isArray(professionals) && professionals.length > 1;
+  const canPickProfessional = canCreateForOthers || sharedAgenda || hasMultipleProfessionals;
+
   // Default the professional filter to the current user when a professional is
-  // using a shared agenda (so their own agenda shows first, but they can switch).
+  // in a multi-professional org (so their own agenda shows first).
   useEffect(() => {
-    if (sharedAgenda && !canCreateForOthers && !selectedProfessional && user?.id) {
+    if (!canCreateForOthers && (sharedAgenda || hasMultipleProfessionals) && !selectedProfessional && user?.id) {
       setSelectedProfessional(user.id);
     }
-  }, [sharedAgenda, canCreateForOthers, selectedProfessional, user?.id]);
+  }, [sharedAgenda, hasMultipleProfessionals, canCreateForOthers, selectedProfessional, user?.id]);
 
   const businessStartHour = orgSettings?.scheduleStartHour ?? 8;
   const businessEndHour = orgSettings?.scheduleEndHour ?? 19;
-  const showProfessionalColorsFlag = canCreateForOthers || sharedAgenda;
+  const showProfessionalColorsFlag = canCreateForOthers || sharedAgenda || hasMultipleProfessionals;
 
   const businessHours = useMemo(() => {
     return Array.from({ length: businessEndHour - businessStartHour + 1 }, (_, i) => i + businessStartHour);
