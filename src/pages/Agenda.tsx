@@ -1459,6 +1459,7 @@ function WeekView({ selectedDate, aptsByDate, onSelectDate, onAttend, onCreateAt
                 const key = getLocalDateString(day);
                 const hourApts = (aptsByDate[key] || []).filter((a: any) => {
                   if (!a.time) return false;
+                  if (a.status === "cancelled") return false;
                   const h = parseInt(a.time.split(":")[0], 10);
                   return h === hour;
                 });
@@ -1542,6 +1543,7 @@ function DayView({ selectedDate, appointments, onAttend, onCreateAtSlot, onSelec
           const slotTime = `${String(hour).padStart(2, "0")}:00`;
           const hourApts = appointments.filter((a: any) => {
             if (!a.time) return false;
+            if (a.status === "cancelled") return false;
             return parseInt(a.time.split(":")[0], 10) === hour;
           });
           return (
