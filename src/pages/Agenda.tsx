@@ -1543,6 +1543,7 @@ function DayView({ selectedDate, appointments, onAttend, onCreateAtSlot, onSelec
           const slotTime = `${String(hour).padStart(2, "0")}:00`;
           const hourApts = appointments.filter((a: any) => {
             if (!a.time) return false;
+            if (a.status === "cancelled") return false;
             return parseInt(a.time.split(":")[0], 10) === hour;
           });
           return (
