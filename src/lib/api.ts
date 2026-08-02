@@ -222,7 +222,7 @@ export interface FinancialHealth {
   today: { value: number; count: number };
   future: { value: number; count: number; next30: number };
   overdue: { value: number; count: number };
-  payable: { value: number; count: number; next30: number };
+  payable: { value: number; count: number; next30: number; overdue?: number };
   received_last_30: number;
   health: {
     score: number;
@@ -230,6 +230,14 @@ export interface FinancialHealth {
     coverage_ratio: number;
     default_rate: number;
     projected_balance_30: number;
+  };
+  withdrawal: {
+    cash_on_hand: number;
+    commitments: number;
+    reserve: number;
+    safe_amount: number;
+    level: "sim" | "cuidado" | "nao";
+    message: string;
   };
 }
 
