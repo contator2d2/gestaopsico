@@ -7,11 +7,40 @@ const prisma = require('../db');
 
 router.use(authMiddleware);
 
+// Retorna todos os profissionais da mesma organização (visibilidade financeira multi-profissional)
+async function getOrgProfessionalIds(userId) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { organizationId: true },
+  });
+  if (!user?.organizationId) return { ids: [userId], orgId: null };
+  const teammates = await prisma.user.findMany({
+    where: {
+      organizationId: user.organizationId,
+      status: 'active',
+      role: { in: ['professional', 'secretary', 'financial', 'secretary_financial', 'admin'] },
+    },
+    select: { id: true },
+  });
+  const ids = teammates.map(u => u.id);
+  return { ids: ids.length ? ids : [userId], orgId: user.organizationId };
+}
+
+// Constrói o filtro de profissional a partir da query (?professional_id=all|<id>)
+async function professionalScope(req) {
+  const { ids } = await getOrgProfessionalIds(req.userId);
+  const requested = req.query.professional_id;
+  if (requested && requested !== 'all') {
+    return ids.includes(requested) ? requested : req.userId;
+  }
+  return { in: ids };
+}
+
 // GET /api/accounts - list accounts (contas a pagar/receber) with rich filters
 router.get('/', async (req, res) => {
   try {
     const { type, status, category, startDate, endDate, period, patientId, page = 1, limit = 200 } = req.query;
-    const where = { professionalId: req.userId };
+    const where = { professionalId: await professionalScope(req) };
 
     if (type) where.type = type;
     if (status) where.status = status;
@@ -52,7 +81,12 @@ router.get('/', async (req, res) => {
         orderBy: { dueDate: 'asc' },
         skip: (Number(page) - 1) * Number(limit),
         take: Number(limit),
-        include: { patient: { select: { id: true, name: true, sessionValue: true, billingMode: true } } }
+        include: {
+          patient: { select: { id: true, name: true, sessionValue: true, billingMode: true } },
+          professional: { select: { id: true, name: true } },
+          paidBy: { select: { id: true, name: true } },
+          createdBy: { select: { id: true, name: true } }
+        }
       }),
       prisma.account.count({ where })
     ]);
@@ -67,6 +101,7 @@ router.get('/', async (req, res) => {
 router.get('/summary', async (req, res) => {
   try {
     const { month } = req.query;
+    const scope = await professionalScope(req);
     const now = new Date();
     const year = month ? parseInt(month.split('-')[0]) : now.getFullYear();
     const mon = month ? parseInt(month.split('-')[1]) - 1 : now.getMonth();
@@ -76,14 +111,14 @@ router.get('/summary', async (req, res) => {
     const [accounts, prevPaid] = await Promise.all([
       prisma.account.findMany({
         where: {
-          professionalId: req.userId,
+          professionalId: scope,
           dueDate: { gte: start, lte: end }
         }
       }),
       // Tudo que já foi efetivamente liquidado ANTES deste mês (saldo que vem de trás)
       prisma.account.findMany({
         where: {
-          professionalId: req.userId,
+          professionalId: scope,
           status: 'paid',
           OR: [
             { paidAt: { lt: start } },
@@ -136,6 +171,7 @@ router.get('/summary', async (req, res) => {
 // GET /api/accounts/tab-summary - counts and totals for dashboard tabs
 router.get('/tab-summary', async (req, res) => {
   try {
+    const scope = await professionalScope(req);
     const now = new Date();
     const y = now.getFullYear();
     const m = now.getMonth();
@@ -152,7 +188,7 @@ router.get('/tab-summary', async (req, res) => {
     for (const [key, range] of Object.entries(periods)) {
       const summary = await prisma.account.aggregate({
         where: {
-          professionalId: req.userId,
+          professionalId: scope,
           type: 'receivable',
           dueDate: range
         },
@@ -165,7 +201,7 @@ router.get('/tab-summary', async (req, res) => {
     // For 'open' (pending + overdue)
     const openSummary = await prisma.account.aggregate({
       where: {
-        professionalId: req.userId,
+        professionalId: scope,
         type: 'receivable',
         status: { in: ['pending', 'overdue'] }
       },
@@ -177,7 +213,7 @@ router.get('/tab-summary', async (req, res) => {
     // For 'overdue'
     const overdueSummary = await prisma.account.aggregate({
       where: {
-        professionalId: req.userId,
+        professionalId: scope,
         type: 'receivable',
         status: 'overdue'
       },
@@ -189,7 +225,7 @@ router.get('/tab-summary', async (req, res) => {
     // For 'all'
     const allSummary = await prisma.account.aggregate({
       where: {
-        professionalId: req.userId,
+        professionalId: scope,
         type: 'receivable'
       },
       _count: { id: true },
@@ -314,9 +350,10 @@ router.post('/bulk-pay', async (req, res) => {
       return res.status(400).json({ error: 'IDs são obrigatórios' });
     }
     const date = paidAt ? new Date(paidAt) : new Date();
+    const { ids: orgIds } = await getOrgProfessionalIds(req.userId);
     const result = await prisma.account.updateMany({
-      where: { id: { in: ids }, professionalId: req.userId },
-      data: { status: 'paid', paidAt: date, ...(paymentMethod ? { paymentMethod } : {}) }
+      where: { id: { in: ids }, professionalId: { in: orgIds } },
+      data: { status: 'paid', paidAt: date, paidById: req.userId, ...(paymentMethod ? { paymentMethod } : {}) }
     });
     res.json({ message: 'Pagamentos registrados', count: result.count });
   } catch (err) {
@@ -369,7 +406,10 @@ router.post('/bulk-charge', async (req, res) => {
 // POST /api/accounts
 router.post('/', async (req, res) => {
   try {
-    const { type, description, value, dueDate, category, patientId, paymentMethod, notes, recurrence, status, paidAt } = req.body;
+    const { type, description, value, dueDate, category, patientId, paymentMethod, notes, recurrence, status, paidAt, professionalId, paidById } = req.body;
+    const { ids: orgIds } = await getOrgProfessionalIds(req.userId);
+    const ownerId = professionalId && orgIds.includes(professionalId) ? professionalId : req.userId;
+    const payerId = paidById && orgIds.includes(paidById) ? paidById : req.userId;
     if (!type || !description || !value || !dueDate) {
       return res.status(400).json({ error: 'Tipo, descrição, valor e vencimento são obrigatórios' });
     }
@@ -379,7 +419,8 @@ router.post('/', async (req, res) => {
 
     const account = await prisma.account.create({
       data: {
-        professionalId: req.userId,
+        professionalId: ownerId,
+        createdById: req.userId,
         type,
         description,
         value: parseFloat(value),
@@ -390,9 +431,13 @@ router.post('/', async (req, res) => {
         notes,
         recurrence,
         ...(status && allowedStatus.includes(status) ? { status } : {}),
-        ...(isPaid ? { paidAt: paidAt ? new Date(paidAt) : new Date(dueDate) } : (paidAt ? { paidAt: new Date(paidAt) } : {}))
+        ...(isPaid ? { paidAt: paidAt ? new Date(paidAt) : new Date(dueDate), paidById: payerId } : (paidAt ? { paidAt: new Date(paidAt) } : {}))
       },
-      include: { patient: { select: { id: true, name: true } } }
+      include: {
+        patient: { select: { id: true, name: true } },
+        professional: { select: { id: true, name: true } },
+        paidBy: { select: { id: true, name: true } }
+      }
     });
 
     res.status(201).json(account);
@@ -404,13 +449,15 @@ router.post('/', async (req, res) => {
 // PUT /api/accounts/:id
 router.put('/:id', async (req, res) => {
   try {
+    const { ids: orgIds } = await getOrgProfessionalIds(req.userId);
     const existing = await prisma.account.findFirst({
-      where: { id: req.params.id, professionalId: req.userId }
+      where: { id: req.params.id, professionalId: { in: orgIds } }
     });
     if (!existing) return res.status(404).json({ error: 'Conta não encontrada' });
 
     const data = {};
-    const { description, value, dueDate, status, category, paymentMethod, notes, paidAt } = req.body;
+    const { description, value, dueDate, status, category, paymentMethod, notes, paidAt, professionalId, paidById } = req.body;
+    if (professionalId !== undefined && orgIds.includes(professionalId)) data.professionalId = professionalId;
     if (description !== undefined) data.description = description;
     if (value !== undefined) data.value = parseFloat(value);
     if (dueDate !== undefined) data.dueDate = new Date(dueDate);
@@ -420,11 +467,19 @@ router.put('/:id', async (req, res) => {
     if (notes !== undefined) data.notes = notes;
     if (paidAt !== undefined) data.paidAt = paidAt ? new Date(paidAt) : null;
     if (status === 'paid' && !data.paidAt) data.paidAt = new Date();
+    if (status === 'paid') {
+      data.paidById = paidById && orgIds.includes(paidById) ? paidById : (existing.paidById || req.userId);
+    }
+    if (status !== undefined && status !== 'paid') data.paidById = null;
 
     const account = await prisma.account.update({
       where: { id: req.params.id },
       data,
-      include: { patient: { select: { id: true, name: true } } }
+      include: {
+        patient: { select: { id: true, name: true } },
+        professional: { select: { id: true, name: true } },
+        paidBy: { select: { id: true, name: true } }
+      }
     });
 
     res.json(account);

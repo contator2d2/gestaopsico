@@ -137,6 +137,8 @@ model User {
   appointments   Appointment[]
   records        Record[]
   accounts       Account[]     @relation("userAccounts")
+  accountsCreated Account[]    @relation("accountCreator")
+  accountsPaid   Account[]     @relation("accountPayer")
   testTemplates  TestTemplate[] @relation("userTests")
   createdAgents  AiAgent[]     @relation("agentCreator")
   customizations AiAgentCustomization[] @relation("agentCustomizations")
@@ -397,6 +399,10 @@ model Account {
   organizationId String?  @map("organization_id") @db.Uuid
   professionalId String   @map("professional_id") @db.Uuid
   professional   User     @relation("userAccounts", fields: [professionalId], references: [id])
+  createdById    String?  @map("created_by_id") @db.Uuid
+  createdBy      User?    @relation("accountCreator", fields: [createdById], references: [id])
+  paidById       String?  @map("paid_by_id") @db.Uuid
+  paidBy         User?    @relation("accountPayer", fields: [paidById], references: [id])
   type           String   @db.VarChar(20)
   description    String
   value          Decimal  @db.Decimal(10, 2)
