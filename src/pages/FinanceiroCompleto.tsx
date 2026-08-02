@@ -415,8 +415,9 @@ export default function FinanceiroCompleto() {
     const data = [];
     const baseMonth = new Date(currentMonth + "-01T12:00:00");
     
-    // Saldo inicial pode vir de meses anteriores ou ser 0
-    let cumulativeBalance = 0;
+    // Saldo inicial vem do que já foi liquidado nos meses anteriores
+    let cumulativeBalance = (summaryData as any)?.openingBalance ?? 0;
+
     
     // Pegar 4 meses: atual + 3 futuros
     for (let i = 0; i < 4; i++) {
