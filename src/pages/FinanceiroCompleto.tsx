@@ -1128,7 +1128,14 @@ export default function FinanceiroCompleto() {
                       <td className="px-5 py-3.5 text-sm text-muted-foreground">
                         {acc.dueDate ? new Date(acc.dueDate).toLocaleDateString("pt-BR") : "—"}
                       </td>
-                      <td className="px-5 py-3.5 text-sm font-medium text-destructive">{daysLate(acc.dueDate)} dias</td>
+                      <td className="px-5 py-3.5">
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${isLate(acc) ? statusConfig.overdue.class : statusConfig.pending.class}`}>
+                          {isLate(acc) ? "Vencido" : "Pendente"}
+                        </span>
+                      </td>
+                      <td className={`px-5 py-3.5 text-sm font-medium ${isLate(acc) ? "text-destructive" : "text-muted-foreground"}`}>
+                        {isLate(acc) ? `${daysLate(acc.dueDate)} dias` : "—"}
+                      </td>
                       <td className="px-5 py-3.5 text-sm font-semibold text-foreground">{fmt(acc.value)}</td>
                       <td className="px-5 py-3.5 text-sm text-muted-foreground">{acc.professional?.name || "—"}</td>
                       <td className="px-5 py-3.5">
