@@ -578,6 +578,9 @@ export default function Teleatendimento() {
         motivo: sessionNotes.motivo,
         anotacoes: sessionNotes.anotacoes,
         agentId: selectedAgentId === "default" ? undefined : selectedAgentId,
+        modality: captureMode === "presencial" ? "in_person" : "telehealth",
+        diarize: true,
+
       });
       await recordingStorage.clearSession(activeSession.id).catch(() => undefined);
       setActiveSession(prev => prev ? { ...prev, status: "uploaded", processingStatus: "uploaded" } : null);
