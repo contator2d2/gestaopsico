@@ -99,6 +99,9 @@ export default function Teleatendimento() {
   const [dragOver, setDragOver] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("default");
   const [manualAnalysisResult, setManualAnalysisResult] = useState<string | null>(null);
+  // Modo de captura: "online" (aba/reunião + microfone) ou "presencial" (somente microfone)
+  const [captureMode, setCaptureMode] = useState<"online" | "presencial">("online");
+
 
   const { data: agents = [] } = useAiAgents();
   const analyzeTextMutation = useAnalyzeText();
@@ -317,13 +320,15 @@ export default function Teleatendimento() {
       });
       micStreamRef.current = micStream;
 
-      const supportsDisplayCapture = typeof navigator.mediaDevices?.getDisplayMedia === "function";
+      const supportsDisplayCapture =
+        captureMode === "online" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
       let recordingStream: MediaStream;
       const audioCtx = new AudioContext({ sampleRate: 48000 });
       const dest = audioCtx.createMediaStreamDestination();
       audioContextRef.current = audioCtx;
 
       if (supportsDisplayCapture) {
+
         try {
           const displayStream = await navigator.mediaDevices.getDisplayMedia({
             video: true,
@@ -366,11 +371,18 @@ export default function Teleatendimento() {
         }
       } else {
         const micSource = audioCtx.createMediaStreamSource(new MediaStream([micStream.getAudioTracks()[0].clone()]));
-        micSource.connect(dest);
+        const micGain = audioCtx.createGain();
+        micGain.gain.value = captureMode === "presencial" ? 1.5 : 1.0;
+        micSource.connect(micGain).connect(dest);
         recordingStream = dest.stream;
         displayStreamRef.current = null;
-        toast.info("No celular, a captura será feita pelo microfone do aparelho.");
+        toast.info(
+          captureMode === "presencial"
+            ? "Gravação presencial: somente microfone. Deixe o aparelho entre os participantes."
+            : "No celular, a captura será feita pelo microfone do aparelho."
+        );
       }
+
 
       // Monitor de nível
       startLevelMonitor(recordingStream, audioCtx);
@@ -442,6 +454,8 @@ export default function Teleatendimento() {
             motivo: sessionNotes.motivo,
             anotacoes: sessionNotes.anotacoes,
             agentId: selectedAgentId === "default" ? undefined : selectedAgentId,
+            modality: captureMode === "presencial" ? "in_person" : "telehealth",
+
           },
           final: isFinal,
         });
@@ -564,6 +578,9 @@ export default function Teleatendimento() {
         motivo: sessionNotes.motivo,
         anotacoes: sessionNotes.anotacoes,
         agentId: selectedAgentId === "default" ? undefined : selectedAgentId,
+        modality: captureMode === "presencial" ? "in_person" : "telehealth",
+        diarize: true,
+
       });
       await recordingStorage.clearSession(activeSession.id).catch(() => undefined);
       setActiveSession(prev => prev ? { ...prev, status: "uploaded", processingStatus: "uploaded" } : null);
@@ -571,7 +588,7 @@ export default function Teleatendimento() {
     } catch (err: any) {
       toast.error("Erro ao finalizar áudio: " + err.message);
     }
-  }, [activeSession, sessionNotes, selectedAgentId]);
+  }, [activeSession, sessionNotes, selectedAgentId, captureMode]);
 
   const retryMutation = useMutation({
     mutationFn: (id: string) => telehealthApi.retry(id),
@@ -1158,14 +1175,55 @@ export default function Teleatendimento() {
                 )}
               </div>
 
+              {/* Modo de captura */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Modo de gravação</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {([
+                    {
+                      key: "online" as const,
+                      title: "Sessão online",
+                      desc: "Captura o áudio da reunião (aba/tela) + seu microfone.",
+                    },
+                    {
+                      key: "presencial" as const,
+                      title: "Presencial (só microfone)",
+                      desc: "Grava apenas pelo microfone e a IA identifica os interlocutores pela fala.",
+                    },
+                  ]).map(opt => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setCaptureMode(opt.key)}
+                      className={`text-left rounded-lg border p-3 transition-colors ${
+                        captureMode === opt.key
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <p className="text-sm font-medium text-foreground">{opt.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+                    </button>
+                  ))}
+                </div>
+                {captureMode === "presencial" && (
+                  <p className="text-xs text-muted-foreground">
+                    Dica: deixe o dispositivo entre os participantes. A transcrição sai separada por turnos
+                    (Terapeuta / Paciente) e o registro fica marcado como sessão presencial.
+                  </p>
+                )}
+              </div>
+
               <Button
                 size="lg"
                 className="w-full gap-2"
                 disabled={preflight.checked && !preflight.mic}
                 onClick={startCapture}
               >
-                <Phone className="h-5 w-5" /> Iniciar Gravação
+                {captureMode === "presencial" ? <Mic className="h-5 w-5" /> : <Phone className="h-5 w-5" />}
+                {captureMode === "presencial" ? "Iniciar Gravação Presencial" : "Iniciar Gravação"}
               </Button>
+
             </CardContent>
           </Card>
         )}

@@ -91,7 +91,7 @@ export const telehealthApi = {
     throw lastErr || new Error("Falha ao enviar segmento");
   },
 
-  finalizeSegments: async (id: string, notes?: { motivo?: string; anotacoes?: string; agentId?: string }) => {
+  finalizeSegments: async (id: string, notes?: { motivo?: string; anotacoes?: string; agentId?: string; modality?: "in_person" | "telehealth"; diarize?: boolean }) => {
     const token = localStorage.getItem("auth_token") || localStorage.getItem("token");
     const { API_BASE_URL } = await import("./api");
     const resp = await fetch(`${API_BASE_URL}/telehealth/${id}/finalize`, {
