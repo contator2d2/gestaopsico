@@ -454,6 +454,8 @@ export default function Teleatendimento() {
             motivo: sessionNotes.motivo,
             anotacoes: sessionNotes.anotacoes,
             agentId: selectedAgentId === "default" ? undefined : selectedAgentId,
+            modality: captureMode === "presencial" ? "in_person" : "telehealth",
+
           },
           final: isFinal,
         });
