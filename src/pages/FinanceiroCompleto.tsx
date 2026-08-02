@@ -602,13 +602,15 @@ export default function FinanceiroCompleto() {
               change="Próximos 3 meses" 
               changeType="positive" 
             />
-            <StatCard 
-              icon={AlertCircle} 
-              label="Vencido" 
-              value={fmt(summaryData?.overdueReceivable ?? report?.revenue?.overdue ?? 0)} 
-              change={`${fmt(summaryData?.pendingReceivable ?? report?.revenue?.pending ?? 0)} pendente`} 
-              changeType="negative" 
-            />
+            <button type="button" onClick={() => setTab("overdue")} className="text-left">
+              <StatCard 
+                icon={AlertCircle} 
+                label="Vencido" 
+                value={fmt(summaryData?.overdueTotal ? (summaryData.overdueTotal.receivableValue + summaryData.overdueTotal.payableValue) : (summaryData?.overdueReceivable ?? report?.revenue?.overdue ?? 0))} 
+                change={`${(summaryData?.overdueTotal?.receivableCount ?? 0) + (summaryData?.overdueTotal?.payableCount ?? 0)} lançamento(s) • ver detalhes`} 
+                changeType="negative" 
+              />
+            </button>
           </>
         )}
       </div>
@@ -628,9 +630,13 @@ export default function FinanceiroCompleto() {
           <TabsTrigger value="payable" className="gap-2">
             <ArrowDownRight className="w-4 h-4" />A Pagar
           </TabsTrigger>
+          <TabsTrigger value="overdue" className="gap-2">
+            <AlertCircle className="w-4 h-4" />Vencidos
+          </TabsTrigger>
           <TabsTrigger value="patients" className="gap-2">
             <Users className="w-4 h-4" />Por Paciente
           </TabsTrigger>
+
         </TabsList>
 
         {/* Overview */}
