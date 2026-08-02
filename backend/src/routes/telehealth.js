@@ -795,7 +795,14 @@ router.post('/:id/finalize', express.json({ limit: '128kb' }), async (req, res) 
     });
     await auditLog(session.id, 'audio_finalized', { segments: segFiles.length, size: totalBytes });
 
-    processTranscription(req.params.id, req.userId, { motivo, anotacoes, agentId }).catch(err => {
+    processTranscription(req.params.id, req.userId, {
+      motivo,
+      anotacoes,
+      agentId,
+      modality: modality === 'in_person' ? 'in_person' : 'telehealth',
+      diarize: diarize === true || modality === 'in_person',
+    }).catch(err => {
+
       console.error('Transcription error:', err);
     });
 
