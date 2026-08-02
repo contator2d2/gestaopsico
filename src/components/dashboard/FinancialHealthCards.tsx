@@ -120,7 +120,10 @@ export default function FinancialHealthCards() {
             <p className="text-2xl font-display font-bold text-foreground">{data.health.score}<span className="text-sm text-muted-foreground">/100</span></p>
             <span className={`text-xs font-semibold ${meta.cls}`}>{meta.label}</span>
           </div>
-          <Progress value={data.health.score} className="h-2 mt-2" indicatorClassName={meta.bar} />
+          <div className="h-2 mt-2 w-full rounded-full bg-muted overflow-hidden">
+            <div className={`h-full rounded-full ${meta.bar}`} style={{ width: `${data.health.score}%` }} />
+          </div>
+
           <div className="mt-3 space-y-1 text-xs text-muted-foreground">
             <p>
               Saldo previsto (30d):{" "}
