@@ -816,7 +816,7 @@ async function processTranscription(sessionId, userId, notes = {}) {
         clinicalObservations: clinicalObsStr,
         evolution: evolutionStr,
         nextSteps: nextStepsStr,
-        modality: 'telehealth',
+        modality: notes.modality === 'in_person' ? 'in_person' : 'telehealth',
         themes: Array.isArray(structured?.temas_abordados) ? structured.temas_abordados : []
       }
     });
