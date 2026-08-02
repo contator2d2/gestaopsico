@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { CalendarClock, TrendingUp, HeartPulse, ArrowRight, AlertTriangle } from "lucide-react";
+import { CalendarClock, TrendingUp, HeartPulse, ArrowRight, AlertTriangle, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -15,13 +15,19 @@ const levelMeta = {
   critico: { label: "Crítico", cls: "text-destructive", bar: "bg-destructive" },
 } as const;
 
+const withdrawMeta = {
+  sim: { label: "Pode retirar", cls: "text-success", bg: "bg-success/10" },
+  cuidado: { label: "Com cautela", cls: "text-warning", bg: "bg-warning/10" },
+  nao: { label: "Não retirar", cls: "text-destructive", bg: "bg-destructive/10" },
+} as const;
+
 export default function FinancialHealthCards() {
   const { data, isLoading, isError } = useFinancialHealth();
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {Array.from({ length: 3 }).map((_, i) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-40 rounded-xl" />
         ))}
       </div>
@@ -38,13 +44,18 @@ export default function FinancialHealthCards() {
   }
 
   const meta = levelMeta[data.health.level] ?? levelMeta.atencao;
+  const w = data.withdrawal ?? {
+    cash_on_hand: 0, commitments: 0, reserve: 0, safe_amount: 0,
+    level: "nao" as const, message: "Sem dados financeiros suficientes.",
+  };
+  const wMeta = withdrawMeta[w.level] ?? withdrawMeta.nao;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.05 }}
-      className="grid grid-cols-1 md:grid-cols-3 gap-4"
+      className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4"
     >
       {/* Receber hoje */}
       <Card className="shadow-card">
@@ -133,6 +144,33 @@ export default function FinancialHealthCards() {
             </p>
             <p>Inadimplência: <span className="font-semibold text-foreground">{data.health.default_rate}%</span></p>
             <p>Despesas previstas (30d): <span className="font-semibold text-foreground">{brl(data.payable.next30)}</span></p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Posso retirar? */}
+      <Card className="shadow-card">
+        <CardHeader className="pb-2">
+          <div className="flex items-center gap-2">
+            <div className={`p-1.5 rounded-lg ${wMeta.bg}`}>
+              <Wallet className={`w-4 h-4 ${wMeta.cls}`} />
+            </div>
+            <div>
+              <CardTitle className="text-sm font-semibold">Posso retirar?</CardTitle>
+              <CardDescription className="text-xs">Retirada segura hoje</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-end justify-between">
+            <p className={`text-2xl font-display font-bold ${wMeta.cls}`}>{brl(w.safe_amount)}</p>
+            <span className={`text-xs font-semibold ${wMeta.cls}`}>{wMeta.label}</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">{w.message}</p>
+          <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+            <p>Caixa realizado: <span className="font-semibold text-foreground">{brl(w.cash_on_hand)}</span></p>
+            <p>Contas a pagar (vencidas + 30d): <span className="font-semibold text-foreground">- {brl(w.commitments)}</span></p>
+            <p>Reserva de segurança (20%): <span className="font-semibold text-foreground">- {brl(w.reserve)}</span></p>
           </div>
         </CardContent>
       </Card>
