@@ -1213,7 +1213,14 @@ export default function Prontuarios() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <VoiceNoteRecorder
+        open={isVoiceNoteOpen}
+        onOpenChange={setIsVoiceNoteOpen}
+        patientId={selectedEntity?.type === "patient" ? selectedEntity.id : undefined}
+      />
     </div>
+
   );
 }
 
