@@ -99,6 +99,9 @@ export default function Teleatendimento() {
   const [dragOver, setDragOver] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("default");
   const [manualAnalysisResult, setManualAnalysisResult] = useState<string | null>(null);
+  // Modo de captura: "online" (aba/reunião + microfone) ou "presencial" (somente microfone)
+  const [captureMode, setCaptureMode] = useState<"online" | "presencial">("online");
+
 
   const { data: agents = [] } = useAiAgents();
   const analyzeTextMutation = useAnalyzeText();
