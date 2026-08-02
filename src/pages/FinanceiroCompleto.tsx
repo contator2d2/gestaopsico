@@ -162,6 +162,33 @@ export default function FinanceiroCompleto() {
       }, {})
   ).sort((a: any, b: any) => b.total - a.total) as any[];
 
+  // Agrupamento por paciente (aba Vencidos/Em aberto)
+  const [groupByPatient, setGroupByPatient] = useState(true);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const toggleGroup = (id: string) =>
+    setExpandedGroups(prev => ({ ...prev, [id]: !prev[id] }));
+  const patientGroups = useMemo(() => {
+    const map: Record<string, { id: string; name: string; items: Account[]; total: number; overdueCount: number; oldest: number }> = {};
+    overdueAccounts.forEach(a => {
+      const key = a.type === "payable" ? "__despesas" : (a.patient?.id || "sem-paciente");
+      const name = a.type === "payable" ? "Despesas (sem paciente)" : (a.patient?.name || "Sem paciente");
+      if (!map[key]) map[key] = { id: key, name, items: [], total: 0, overdueCount: 0, oldest: 0 };
+      map[key].items.push(a);
+      map[key].total += Number(a.value);
+      if (isLate(a)) {
+        map[key].overdueCount += 1;
+        map[key].oldest = Math.max(map[key].oldest, daysLate(a.dueDate));
+      }
+    });
+    return Object.values(map)
+      .map(g => ({
+        ...g,
+        items: g.items.sort((x, y) => new Date(x.dueDate || 0).getTime() - new Date(y.dueDate || 0).getTime()),
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [overdueAccounts]);
+
+
 
 
   // Patient sessions for invoice
