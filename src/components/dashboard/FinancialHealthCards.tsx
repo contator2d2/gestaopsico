@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { CalendarClock, TrendingUp, HeartPulse, ArrowRight, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
+
 import { useFinancialHealth } from "@/hooks/useDashboard";
 
 const brl = (v: number) =>
