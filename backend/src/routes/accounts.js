@@ -109,7 +109,7 @@ router.get('/summary', async (req, res) => {
     const start = new Date(year, mon, 1);
     const end = new Date(year, mon + 1, 0);
 
-    const [accounts, prevPaid] = await Promise.all([
+    const [accounts, prevPaid, overdueAll] = await Promise.all([
       prisma.account.findMany({
         where: {
           professionalId: scope,
@@ -127,19 +127,33 @@ router.get('/summary', async (req, res) => {
           ]
         },
         select: { type: true, value: true }
+      }),
+      // Todos os vencidos (independente do mês selecionado)
+      prisma.account.findMany({
+        where: {
+          professionalId: scope,
+          status: { in: ['pending', 'overdue'] },
+          dueDate: { lt: now }
+        },
+        select: { type: true, value: true }
       })
     ]);
 
     const receivable = accounts.filter(a => a.type === 'receivable');
     const payable = accounts.filter(a => a.type === 'payable');
+    const isOverdue = (a) => ['pending', 'overdue'].includes(a.status) && new Date(a.dueDate) < now;
 
     const totalReceivable = receivable.reduce((s, a) => s + Number(a.value), 0);
     const totalPayable = payable.reduce((s, a) => s + Number(a.value), 0);
     const receivedAmount = receivable.filter(a => a.status === 'paid').reduce((s, a) => s + Number(a.value), 0);
     const paidAmount = payable.filter(a => a.status === 'paid').reduce((s, a) => s + Number(a.value), 0);
-    const pendingReceivable = receivable.filter(a => a.status === 'pending').reduce((s, a) => s + Number(a.value), 0);
-    const pendingPayable = payable.filter(a => a.status === 'pending').reduce((s, a) => s + Number(a.value), 0);
-    const overdueReceivable = receivable.filter(a => a.status === 'overdue').reduce((s, a) => s + Number(a.value), 0);
+    const pendingReceivable = receivable.filter(a => a.status === 'pending' && !isOverdue(a)).reduce((s, a) => s + Number(a.value), 0);
+    const pendingPayable = payable.filter(a => a.status === 'pending' && !isOverdue(a)).reduce((s, a) => s + Number(a.value), 0);
+    const overdueReceivable = receivable.filter(isOverdue).reduce((s, a) => s + Number(a.value), 0);
+    const overduePayable = payable.filter(isOverdue).reduce((s, a) => s + Number(a.value), 0);
+
+    const overdueReceivableAll = overdueAll.filter(a => a.type === 'receivable');
+    const overduePayableAll = overdueAll.filter(a => a.type === 'payable');
 
     // Saldo acumulado que vem dos meses anteriores
     const openingBalance = prevPaid.reduce(
@@ -157,6 +171,13 @@ router.get('/summary', async (req, res) => {
       pendingReceivable,
       pendingPayable,
       overdueReceivable,
+      overduePayable,
+      overdueTotal: {
+        receivableCount: overdueReceivableAll.length,
+        receivableValue: overdueReceivableAll.reduce((s, a) => s + Number(a.value), 0),
+        payableCount: overduePayableAll.length,
+        payableValue: overduePayableAll.reduce((s, a) => s + Number(a.value), 0)
+      },
       cashFlow,
       balance,
       openingBalance: Number(openingBalance.toFixed(2)),
