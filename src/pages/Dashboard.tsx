@@ -6,6 +6,8 @@ import { Link } from "react-router-dom";
 import { useDashboardSummary } from "@/hooks/useDashboard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import FinancialHealthCards from "@/components/dashboard/FinancialHealthCards";
+
 
 export default function Dashboard() {
   const { data: summary, isLoading, isError, error } = useDashboardSummary();
