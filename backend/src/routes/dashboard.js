@@ -112,6 +112,20 @@ router.get('/financial-health', async (req, res) => {
       prisma.account.aggregate({
         where: { ...base, type: 'payable', status: 'overdue' },
         _sum: { value: true }, _count: true
+      }),
+      // Agenda futura (30 dias) para previsão de receita
+      prisma.appointment.findMany({
+        where: {
+          professionalId: req.userId,
+          date: { gte: todayEnd, lt: in30 },
+          status: { in: ['scheduled', 'confirmed'] }
+        },
+        select: { value: true, patient: { select: { sessionValue: true, monthlyValue: true, billingMode: true } } }
+      }),
+      // Pacientes ativos para estimativa recorrente
+      prisma.patient.findMany({
+        where: { professionalId: req.userId, status: 'active' },
+        select: { sessionValue: true, monthlyValue: true, billingMode: true }
       })
     ]);
 
@@ -126,6 +140,37 @@ router.get('/financial-health', async (req, res) => {
     const receivedTotal = n(paidReceivablesAll._sum.value);
     const paidPayablesTotal = n(paidPayablesAll._sum.value);
     const overduePayables = n(overduePay._sum.value);
+
+    // ===== Previsão de receita (não depende de cobranças já geradas) =====
+    // Valor médio de sessão entre os pacientes ativos (fallback para consultas sem valor)
+    const patientSessionValues = activePatients
+      .map(p => n(p.sessionValue) || (n(p.monthlyValue) ? n(p.monthlyValue) / 4 : 0))
+      .filter(v => v > 0);
+    const avgSessionValue = patientSessionValues.length
+      ? patientSessionValues.reduce((s, v) => s + v, 0) / patientSessionValues.length
+      : 0;
+
+    // 1) Previsão pela agenda: consultas já marcadas nos próximos 30 dias
+    const scheduled30 = futureAppointments.reduce((s, a) => {
+      const p = a.patient || {};
+      const val = n(a.value)
+        || n(p.sessionValue)
+        || (n(p.monthlyValue) ? n(p.monthlyValue) / 4 : 0)
+        || avgSessionValue;
+      return s + val;
+    }, 0);
+
+    // 2) Previsão recorrente: pacientes ativos mantendo a frequência atual (~4 sessões/mês)
+    const recurring30 = activePatients.reduce((s, p) => {
+      if (p.billingMode === 'monthly' && n(p.monthlyValue)) return s + n(p.monthlyValue);
+      const sv = n(p.sessionValue) || avgSessionValue;
+      return s + sv * 4;
+    }, 0);
+
+    // Previsão final: o maior entre o que já está lançado/agendado e a recorrência esperada
+    const bookedOrBilled30 = Math.max(future30 + todayValue, scheduled30);
+    const expected30 = Math.max(bookedOrBilled30, recurring30);
+
 
     // Health score (0-100)
     const projected30 = future30 + todayValue;
