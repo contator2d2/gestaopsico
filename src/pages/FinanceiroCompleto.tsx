@@ -1142,7 +1142,84 @@ export default function FinanceiroCompleto() {
               <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-40" />
               <p>Nenhum lançamento {overdueScope === "pending" ? "pendente" : overdueScope === "overdue" ? "vencido" : "em aberto"}. Tudo em dia!</p>
             </div>
+          ) : groupByPatient ? (
+            <div className="space-y-3">
+              {patientGroups.map(group => {
+                const open = expandedGroups[group.id] ?? true;
+                return (
+                  <div key={group.id} className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(group.id)}
+                        className="flex items-center gap-2 min-w-0 flex-1 text-left"
+                      >
+                        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${open ? "" : "-rotate-90"}`} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{group.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {group.items.length} consulta(s)/lançamento(s)
+                            {group.overdueCount > 0 && ` • ${group.overdueCount} vencido(s) • até ${group.oldest}d`}
+                          </p>
+                        </div>
+                      </button>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold text-foreground">{fmt(group.total)}</p>
+                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${group.overdueCount > 0 ? statusConfig.overdue.class : statusConfig.pending.class}`}>
+                          {group.overdueCount > 0 ? "Vencido" : "Pendente"}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0"
+                        onClick={() => group.items.forEach(i => markPaid.mutate(i.id))}
+                      >
+                        <CheckCircle className="w-4 h-4 mr-1.5" />Baixar todas
+                      </Button>
+                    </div>
+                    {open && (
+                      <div className="divide-y divide-border border-t border-border">
+                        {group.items.map(acc => (
+                          <div key={acc.id} className="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-foreground truncate">{acc.description}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Venc. {acc.dueDate ? new Date(acc.dueDate).toLocaleDateString("pt-BR") : "—"}
+                                {isLate(acc) && ` • ${daysLate(acc.dueDate)} dias de atraso`}
+                                {acc.professional?.name && ` • ${acc.professional.name}`}
+                              </p>
+                            </div>
+                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${isLate(acc) ? statusConfig.overdue.class : statusConfig.pending.class}`}>
+                              {isLate(acc) ? "Vencido" : "Pendente"}
+                            </span>
+                            <p className="text-sm font-semibold text-foreground w-28 text-right">{fmt(acc.value)}</p>
+                            <Button size="sm" variant="secondary" onClick={() => markPaid.mutate(acc.id)}>
+                              <CheckCircle className="w-4 h-4 mr-1.5" />Dar baixa
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="p-1 rounded hover:bg-muted"><MoreHorizontal className="w-4 h-4 text-muted-foreground" /></button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openEdit(acc)}>
+                                  <Edit className="w-4 h-4 mr-2" />Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(acc.id)}>
+                                  <Trash2 className="w-4 h-4 mr-2" />Excluir
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           ) : (
+
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-xl border border-border shadow-card overflow-x-auto">
               <table className="w-full">
                 <thead>
