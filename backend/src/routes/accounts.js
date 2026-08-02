@@ -73,12 +73,26 @@ router.get('/summary', async (req, res) => {
     const start = new Date(year, mon, 1);
     const end = new Date(year, mon + 1, 0);
 
-    const accounts = await prisma.account.findMany({
-      where: {
-        professionalId: req.userId,
-        dueDate: { gte: start, lte: end }
-      }
-    });
+    const [accounts, prevPaid] = await Promise.all([
+      prisma.account.findMany({
+        where: {
+          professionalId: req.userId,
+          dueDate: { gte: start, lte: end }
+        }
+      }),
+      // Tudo que já foi efetivamente liquidado ANTES deste mês (saldo que vem de trás)
+      prisma.account.findMany({
+        where: {
+          professionalId: req.userId,
+          status: 'paid',
+          OR: [
+            { paidAt: { lt: start } },
+            { paidAt: null, dueDate: { lt: start } }
+          ]
+        },
+        select: { type: true, value: true }
+      })
+    ]);
 
     const receivable = accounts.filter(a => a.type === 'receivable');
     const payable = accounts.filter(a => a.type === 'payable');
@@ -91,6 +105,14 @@ router.get('/summary', async (req, res) => {
     const pendingPayable = payable.filter(a => a.status === 'pending').reduce((s, a) => s + Number(a.value), 0);
     const overdueReceivable = receivable.filter(a => a.status === 'overdue').reduce((s, a) => s + Number(a.value), 0);
 
+    // Saldo acumulado que vem dos meses anteriores
+    const openingBalance = prevPaid.reduce(
+      (s, a) => s + (a.type === 'receivable' ? Number(a.value) : -Number(a.value)),
+      0
+    );
+    const cashFlow = receivedAmount - paidAmount;
+    const balance = totalReceivable - totalPayable;
+
     res.json({
       totalReceivable,
       totalPayable,
@@ -99,9 +121,13 @@ router.get('/summary', async (req, res) => {
       pendingReceivable,
       pendingPayable,
       overdueReceivable,
-      cashFlow: receivedAmount - paidAmount,
-      balance: totalReceivable - totalPayable
+      cashFlow,
+      balance,
+      openingBalance: Number(openingBalance.toFixed(2)),
+      closingBalance: Number((openingBalance + cashFlow).toFixed(2)),
+      projectedClosingBalance: Number((openingBalance + balance).toFixed(2))
     });
+
   } catch (err) {
     res.status(500).json({ error: 'Erro ao obter resumo financeiro', details: err.message });
   }
