@@ -519,9 +519,9 @@ export default function FinanceiroCompleto() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {reportLoading ? (
-          Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
+          Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)
         ) : (
           <>
             <StatCard 
@@ -543,8 +543,16 @@ export default function FinanceiroCompleto() {
               label="Fluxo de Caixa" 
               value={fmt(summaryData?.cashFlow ?? report?.cashFlow ?? 0)} 
               changeType={(summaryData?.cashFlow ?? report?.cashFlow ?? 0) >= 0 ? "positive" : "negative"} 
-              change="Entradas - Saídas" 
+              change={`Saldo anterior: ${fmt(summaryData?.openingBalance ?? 0)}`} 
             />
+            <StatCard 
+              icon={PiggyBank} 
+              label="Saldo Acumulado" 
+              value={fmt(summaryData?.closingBalance ?? 0)} 
+              changeType={(summaryData?.closingBalance ?? 0) >= 0 ? "positive" : "negative"} 
+              change={`Previsto no mês: ${fmt(summaryData?.projectedClosingBalance ?? 0)}`} 
+            />
+
             <StatCard 
               icon={TrendingUp} 
               label="Receita Futura" 
