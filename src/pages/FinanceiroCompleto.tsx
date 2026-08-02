@@ -1006,10 +1006,32 @@ export default function FinanceiroCompleto() {
 
         {/* Overdue Tab */}
         <TabsContent value="overdue" className="mt-4 space-y-4">
+          {/* Filtro de escopo */}
+          <div className="flex flex-wrap items-center gap-2">
+            {([
+              { key: "overdue", label: "Vencidos" },
+              { key: "pending", label: "Pendentes (a vencer)" },
+              { key: "all", label: "Tudo em aberto" },
+            ] as const).map(opt => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setOverdueScope(opt.key)}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                  overdueScope === opt.key
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-muted-foreground border-border hover:bg-muted"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="border-destructive/30">
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">A receber vencido</p>
+                <p className="text-xs text-muted-foreground">A receber em aberto</p>
                 <p className="text-xl font-bold text-destructive">
                   {fmt(overdueReceivableList.reduce((s, a) => s + Number(a.value), 0))}
                 </p>
@@ -1018,7 +1040,7 @@ export default function FinanceiroCompleto() {
             </Card>
             <Card className="border-warning/30">
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">A pagar vencido</p>
+                <p className="text-xs text-muted-foreground">A pagar em aberto</p>
                 <p className="text-xl font-bold text-warning">
                   {fmt(overduePayableList.reduce((s, a) => s + Number(a.value), 0))}
                 </p>
@@ -1039,12 +1061,43 @@ export default function FinanceiroCompleto() {
             </Card>
           </div>
 
+          {/* Pacientes em aberto */}
+          {openPatients.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Pacientes em aberto ({openPatients.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {openPatients.map((p: any) => (
+                  <div key={p.id} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {p.count} lançamento(s)
+                        {p.overdueCount > 0 && ` • ${p.overdueCount} vencido(s) • ${p.oldest}d`}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-semibold text-foreground">{fmt(p.total)}</p>
+                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${p.overdueCount > 0 ? statusConfig.overdue.class : statusConfig.pending.class}`}>
+                        {p.overdueCount > 0 ? "Vencido" : "Pendente"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
           {overdueLoading ? (
             <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>
           ) : overdueAccounts.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-40" />
-              <p>Nenhum lançamento vencido. Tudo em dia!</p>
+              <p>Nenhum lançamento {overdueScope === "pending" ? "pendente" : overdueScope === "overdue" ? "vencido" : "em aberto"}. Tudo em dia!</p>
             </div>
           ) : (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-xl border border-border shadow-card overflow-x-auto">
