@@ -124,17 +124,42 @@ export default function FinanceiroCompleto() {
     enabled: tab === "receivable" || tab === "payable",
   });
 
-  // Todos os vencidos (independente do mês selecionado)
+  // Todos em aberto (pendentes + vencidos, independente do mês selecionado)
   const { data: overdueData, isLoading: overdueLoading } = useQuery({
-    queryKey: ["accounts", "overdue-all", professionalFilter],
-    queryFn: () => accountsApi.list({ period: "overdue", professional_id: professionalFilter }),
+    queryKey: ["accounts", "open-all", professionalFilter],
+    queryFn: () => accountsApi.list({ period: "open", professional_id: professionalFilter }),
     enabled: tab === "overdue",
   });
-  const overdueAccounts: Account[] = (overdueData as any)?.data || [];
-  const overdueReceivableList = overdueAccounts.filter(a => a.type === "receivable");
-  const overduePayableList = overdueAccounts.filter(a => a.type === "payable");
   const daysLate = (d?: string) =>
     d ? Math.max(0, Math.floor((Date.now() - new Date(d).getTime()) / 86400000)) : 0;
+  const allOpenAccounts: Account[] = (overdueData as any)?.data || [];
+  const isLate = (a: Account) => !!a.dueDate && new Date(a.dueDate).getTime() < Date.now();
+  // Filtro interno da aba: vencidos, pendentes (a vencer) ou tudo em aberto
+  const [overdueScope, setOverdueScope] = useState<"overdue" | "pending" | "all">("overdue");
+  const overdueAccounts: Account[] = allOpenAccounts.filter(a =>
+    overdueScope === "all" ? true : overdueScope === "overdue" ? isLate(a) : !isLate(a)
+  );
+  const overdueReceivableList = overdueAccounts.filter(a => a.type === "receivable");
+  const overduePayableList = overdueAccounts.filter(a => a.type === "payable");
+
+  // Pacientes com valores em aberto (pendentes + vencidos)
+  const openPatients = Object.values(
+    overdueAccounts
+      .filter(a => a.type === "receivable")
+      .reduce((acc: Record<string, any>, a) => {
+        const key = a.patient?.id || "sem-paciente";
+        if (!acc[key]) {
+          acc[key] = { id: key, name: a.patient?.name || "Sem paciente", total: 0, count: 0, overdueCount: 0, oldest: 0 };
+        }
+        acc[key].total += Number(a.value);
+        acc[key].count += 1;
+        if (isLate(a)) {
+          acc[key].overdueCount += 1;
+          acc[key].oldest = Math.max(acc[key].oldest, daysLate(a.dueDate));
+        }
+        return acc;
+      }, {})
+  ).sort((a: any, b: any) => b.total - a.total) as any[];
 
 
 
@@ -981,10 +1006,32 @@ export default function FinanceiroCompleto() {
 
         {/* Overdue Tab */}
         <TabsContent value="overdue" className="mt-4 space-y-4">
+          {/* Filtro de escopo */}
+          <div className="flex flex-wrap items-center gap-2">
+            {([
+              { key: "overdue", label: "Vencidos" },
+              { key: "pending", label: "Pendentes (a vencer)" },
+              { key: "all", label: "Tudo em aberto" },
+            ] as const).map(opt => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setOverdueScope(opt.key)}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                  overdueScope === opt.key
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-muted-foreground border-border hover:bg-muted"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="border-destructive/30">
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">A receber vencido</p>
+                <p className="text-xs text-muted-foreground">A receber em aberto</p>
                 <p className="text-xl font-bold text-destructive">
                   {fmt(overdueReceivableList.reduce((s, a) => s + Number(a.value), 0))}
                 </p>
@@ -993,7 +1040,7 @@ export default function FinanceiroCompleto() {
             </Card>
             <Card className="border-warning/30">
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">A pagar vencido</p>
+                <p className="text-xs text-muted-foreground">A pagar em aberto</p>
                 <p className="text-xl font-bold text-warning">
                   {fmt(overduePayableList.reduce((s, a) => s + Number(a.value), 0))}
                 </p>
@@ -1014,12 +1061,43 @@ export default function FinanceiroCompleto() {
             </Card>
           </div>
 
+          {/* Pacientes em aberto */}
+          {openPatients.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Pacientes em aberto ({openPatients.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {openPatients.map((p: any) => (
+                  <div key={p.id} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {p.count} lançamento(s)
+                        {p.overdueCount > 0 && ` • ${p.overdueCount} vencido(s) • ${p.oldest}d`}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-semibold text-foreground">{fmt(p.total)}</p>
+                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${p.overdueCount > 0 ? statusConfig.overdue.class : statusConfig.pending.class}`}>
+                        {p.overdueCount > 0 ? "Vencido" : "Pendente"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
           {overdueLoading ? (
             <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>
           ) : overdueAccounts.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-40" />
-              <p>Nenhum lançamento vencido. Tudo em dia!</p>
+              <p>Nenhum lançamento {overdueScope === "pending" ? "pendente" : overdueScope === "overdue" ? "vencido" : "em aberto"}. Tudo em dia!</p>
             </div>
           ) : (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-xl border border-border shadow-card overflow-x-auto">
@@ -1030,6 +1108,7 @@ export default function FinanceiroCompleto() {
                     <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Descrição</th>
                     <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Paciente</th>
                     <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Vencimento</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Status</th>
                     <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Atraso</th>
                     <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Valor</th>
                     <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Profissional</th>
@@ -1049,7 +1128,14 @@ export default function FinanceiroCompleto() {
                       <td className="px-5 py-3.5 text-sm text-muted-foreground">
                         {acc.dueDate ? new Date(acc.dueDate).toLocaleDateString("pt-BR") : "—"}
                       </td>
-                      <td className="px-5 py-3.5 text-sm font-medium text-destructive">{daysLate(acc.dueDate)} dias</td>
+                      <td className="px-5 py-3.5">
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${isLate(acc) ? statusConfig.overdue.class : statusConfig.pending.class}`}>
+                          {isLate(acc) ? "Vencido" : "Pendente"}
+                        </span>
+                      </td>
+                      <td className={`px-5 py-3.5 text-sm font-medium ${isLate(acc) ? "text-destructive" : "text-muted-foreground"}`}>
+                        {isLate(acc) ? `${daysLate(acc.dueDate)} dias` : "—"}
+                      </td>
                       <td className="px-5 py-3.5 text-sm font-semibold text-foreground">{fmt(acc.value)}</td>
                       <td className="px-5 py-3.5 text-sm text-muted-foreground">{acc.professional?.name || "—"}</td>
                       <td className="px-5 py-3.5">
