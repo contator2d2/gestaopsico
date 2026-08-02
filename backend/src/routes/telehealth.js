@@ -608,6 +608,9 @@ router.post('/:id/upload', async (req, res) => {
     // Read session notes from headers
     const motivo = req.headers['x-session-motivo'] ? decodeURIComponent(req.headers['x-session-motivo']) : null;
     const anotacoes = req.headers['x-session-anotacoes'] ? decodeURIComponent(req.headers['x-session-anotacoes']) : null;
+    const modalityHeader = req.headers['x-session-modality'];
+    const modality = modalityHeader === 'in_person' ? 'in_person' : 'telehealth';
+
 
     await prisma.telehealthSession.update({
       where: { id: req.params.id },
@@ -624,7 +627,7 @@ router.post('/:id/upload', async (req, res) => {
     await auditLog(session.id, 'audio_uploaded', { fileName: '***', size: bytes });
 
     // Start async transcription with notes context
-    processTranscription(req.params.id, req.userId, { motivo, anotacoes }).catch(err => {
+    processTranscription(req.params.id, req.userId, { motivo, anotacoes, modality }).catch(err => {
       console.error('Transcription error:', err);
     });
 
@@ -813,7 +816,7 @@ async function processTranscription(sessionId, userId, notes = {}) {
         clinicalObservations: clinicalObsStr,
         evolution: evolutionStr,
         nextSteps: nextStepsStr,
-        modality: 'telehealth',
+        modality: notes.modality === 'in_person' ? 'in_person' : 'telehealth',
         themes: Array.isArray(structured?.temas_abordados) ? structured.temas_abordados : []
       }
     });

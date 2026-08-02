@@ -38,7 +38,7 @@ export const telehealthApi = {
   delete: (id: string) => apiRequest<{ message: string }>(`/telehealth/${id}`, { method: "DELETE" }),
   process: (id: string) => apiRequest<{ message: string }>(`/telehealth/${id}/process`, { method: "POST" }),
 
-  uploadAudio: async (id: string, audioBlob: Blob, notes?: { motivo?: string; anotacoes?: string; agentId?: string }) => {
+  uploadAudio: async (id: string, audioBlob: Blob, notes?: { motivo?: string; anotacoes?: string; agentId?: string; modality?: "in_person" | "telehealth" }) => {
     const token = localStorage.getItem("auth_token") || localStorage.getItem("token");
     const { API_BASE_URL } = await import("./api");
     const resp = await fetch(`${API_BASE_URL}/telehealth/${id}/upload`, {
@@ -49,7 +49,9 @@ export const telehealthApi = {
         ...(notes?.motivo ? { "X-Session-Motivo": encodeURIComponent(notes.motivo) } : {}),
         ...(notes?.anotacoes ? { "X-Session-Anotacoes": encodeURIComponent(notes.anotacoes) } : {}),
         ...(notes?.agentId ? { "X-Session-Agent": notes.agentId } : {}),
+        ...(notes?.modality ? { "X-Session-Modality": notes.modality } : {}),
       },
+
       body: audioBlob
     });
     if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).error || "Erro ao enviar áudio");

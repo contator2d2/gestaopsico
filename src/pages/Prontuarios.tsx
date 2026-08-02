@@ -22,7 +22,7 @@ import {
   FileText, Plus, Search, Calendar, User, Edit, Eye, Sparkles, Brain,
   AlertTriangle, TrendingUp, Tag, BarChart3, Clock, ChevronRight, ArrowLeft,
   Users, Heart, Filter, CalendarDays, Trash2, RefreshCw, CheckCircle2, Smile,
-  DollarSign, ClipboardList, Copy, MessageSquare
+  DollarSign, ClipboardList, Copy, MessageSquare, Mic
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import PatientTimeline from "@/components/records/PatientTimeline";
@@ -35,6 +35,7 @@ import PatientFinancial from "@/components/records/PatientFinancial";
 import PatientTestsTab from "@/components/records/PatientTestsTab";
 import { LayoutDashboard, Target } from "lucide-react";
 import PatientGoals from "@/components/records/PatientGoals";
+import VoiceNoteRecorder from "@/components/records/VoiceNoteRecorder";
 import { useNavigate } from "react-router-dom";
 import { getLocalDateString } from "@/lib/utils";
 
@@ -64,6 +65,7 @@ export default function Prontuarios() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isVoiceNoteOpen, setIsVoiceNoteOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<RecordData | null>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -362,7 +364,11 @@ export default function Prontuarios() {
               <Plus className="w-4 h-4 mr-2" /> Lançar Sessão Passada
             </Button>
           )}
+          <Button variant="outline" onClick={() => setIsVoiceNoteOpen(true)}>
+            <Mic className="w-4 h-4 mr-2" /> Nota de voz (IA)
+          </Button>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+
             <DialogTrigger asChild>
               <Button className="gradient-primary border-0 shadow-glow" onClick={() => {
                 const newForm = { ...EMPTY_FORM };
@@ -1207,7 +1213,14 @@ export default function Prontuarios() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <VoiceNoteRecorder
+        open={isVoiceNoteOpen}
+        onOpenChange={setIsVoiceNoteOpen}
+        patientId={selectedEntity?.type === "patient" ? selectedEntity.id : undefined}
+      />
     </div>
+
   );
 }
 
