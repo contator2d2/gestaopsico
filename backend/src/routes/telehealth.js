@@ -779,7 +779,7 @@ router.post('/:id/finalize', express.json({ limit: '128kb' }), async (req, res) 
     try { fs.rmdirSync(dir); } catch {}
 
     const totalBytes = fs.statSync(filePath).size;
-    const { motivo, anotacoes, agentId } = req.body || {};
+    const { motivo, anotacoes, agentId, modality, diarize } = req.body || {};
 
     await prisma.telehealthSession.update({
       where: { id: req.params.id },
