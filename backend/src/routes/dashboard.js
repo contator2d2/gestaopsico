@@ -100,6 +100,18 @@ router.get('/financial-health', async (req, res) => {
       prisma.account.aggregate({
         where: { ...base, type: 'receivable', status: 'paid', paidAt: { gte: new Date(todayStart.getTime() - 30 * 86400000) } },
         _sum: { value: true }
+      }),
+      prisma.account.aggregate({
+        where: { ...base, type: 'receivable', status: 'paid' },
+        _sum: { value: true }
+      }),
+      prisma.account.aggregate({
+        where: { ...base, type: 'payable', status: 'paid' },
+        _sum: { value: true }
+      }),
+      prisma.account.aggregate({
+        where: { ...base, type: 'payable', status: 'overdue' },
+        _sum: { value: true }, _count: true
       })
     ]);
 
@@ -111,6 +123,9 @@ router.get('/financial-health', async (req, res) => {
     const payableValue = n(futurePay._sum.value);
     const payable30 = n(futurePay30._sum.value);
     const received30 = n(paidLast30._sum.value);
+    const receivedTotal = n(paidReceivablesAll._sum.value);
+    const paidPayablesTotal = n(paidPayablesAll._sum.value);
+    const overduePayables = n(overduePay._sum.value);
 
     // Health score (0-100)
     const projected30 = future30 + todayValue;
@@ -126,11 +141,32 @@ router.get('/financial-health', async (req, res) => {
 
     const level = score >= 75 ? 'saudavel' : score >= 50 ? 'atencao' : 'critico';
 
+    // ===== Posso retirar dinheiro? =====
+    // Caixa realizado = tudo que já foi efetivamente recebido menos o que já foi pago
+    const cashOnHand = receivedTotal - paidPayablesTotal;
+    // Compromissos já assumidos (vencidos + próximos 30 dias)
+    const commitments = overduePayables + payable30;
+    // Reserva de segurança: 20% das despesas dos próximos 30 dias (mínimo interno)
+    const reserve = Number((payable30 * 0.2).toFixed(2));
+    const available = Number((cashOnHand - commitments - reserve).toFixed(2));
+    const safeWithdrawal = Number(Math.max(0, available).toFixed(2));
+
+    let withdrawLevel = 'nao';
+    let withdrawMessage = 'Não é recomendado retirar agora: o caixa não cobre as contas a pagar já assumidas.';
+    if (safeWithdrawal > 0 && score >= 50) {
+      withdrawLevel = 'sim';
+      withdrawMessage = 'Você pode retirar este valor mantendo as contas a pagar e a reserva de segurança cobertas.';
+    } else if (safeWithdrawal > 0) {
+      withdrawLevel = 'cuidado';
+      withdrawLevel = 'cuidado';
+      withdrawMessage = 'Há caixa disponível, mas a inadimplência/cobertura está baixa. Retire com cautela.';
+    }
+
     res.json({
       today: { value: todayValue, count: todayRec._count || 0 },
       future: { value: futureValue, count: futureRec._count || 0, next30: future30 },
       overdue: { value: overdueValue, count: overdueRec._count || 0 },
-      payable: { value: payableValue, count: futurePay._count || 0, next30: payable30 },
+      payable: { value: payableValue, count: futurePay._count || 0, next30: payable30, overdue: overduePayables },
       received_last_30: received30,
       health: {
         score,
@@ -138,8 +174,17 @@ router.get('/financial-health', async (req, res) => {
         coverage_ratio: Number(coverage.toFixed(2)),
         default_rate: Number((defaultRate * 100).toFixed(1)),
         projected_balance_30: Number((projected30 - payable30).toFixed(2))
+      },
+      withdrawal: {
+        cash_on_hand: Number(cashOnHand.toFixed(2)),
+        commitments: Number(commitments.toFixed(2)),
+        reserve,
+        safe_amount: safeWithdrawal,
+        level: withdrawLevel,
+        message: withdrawMessage
       }
     });
+
   } catch (err) {
     res.status(500).json({ error: 'Erro ao calcular saúde financeira', details: err.message });
   }
