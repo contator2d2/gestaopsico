@@ -627,7 +627,7 @@ router.post('/:id/upload', async (req, res) => {
     await auditLog(session.id, 'audio_uploaded', { fileName: '***', size: bytes });
 
     // Start async transcription with notes context
-    processTranscription(req.params.id, req.userId, { motivo, anotacoes }).catch(err => {
+    processTranscription(req.params.id, req.userId, { motivo, anotacoes, modality }).catch(err => {
       console.error('Transcription error:', err);
     });
 
