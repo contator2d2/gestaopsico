@@ -72,7 +72,7 @@ router.get('/financial-health', async (req, res) => {
 
     const base = { professionalId: req.userId };
 
-    const [todayRec, futureRec, futureRec30, overdueRec, futurePay, futurePay30, paidLast30] = await Promise.all([
+    const [todayRec, futureRec, futureRec30, overdueRec, futurePay, futurePay30, paidLast30, paidReceivablesAll, paidPayablesAll, overduePay] = await Promise.all([
       prisma.account.aggregate({
         where: { ...base, type: 'receivable', status: { in: ['pending', 'overdue'] }, dueDate: { gte: todayStart, lt: todayEnd } },
         _sum: { value: true }, _count: true
