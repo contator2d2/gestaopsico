@@ -67,6 +67,11 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* Indicadores financeiros */}
+      <FinancialHealthCards />
+
+
+
       {/* Clinical Intelligence Section (Premium Feature) */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
