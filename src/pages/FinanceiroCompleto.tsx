@@ -1108,6 +1108,7 @@ export default function FinanceiroCompleto() {
                     <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Descrição</th>
                     <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Paciente</th>
                     <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Vencimento</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Status</th>
                     <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Atraso</th>
                     <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Valor</th>
                     <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Profissional</th>
