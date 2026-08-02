@@ -32,6 +32,13 @@ export interface AccountsSummary {
   pendingReceivable: number;
   pendingPayable: number;
   overdueReceivable: number;
+  overduePayable?: number;
+  overdueTotal?: {
+    receivableCount: number;
+    receivableValue: number;
+    payableCount: number;
+    payableValue: number;
+  };
   cashFlow: number;
   balance: number;
   openingBalance?: number;

@@ -111,14 +111,32 @@ export default function FinanceiroCompleto() {
   const accountType = tab === "payable" ? "payable" : "receivable";
   const { data: accountsData, isLoading: accLoading } = useQuery({
     queryKey: ["accounts", accountType, currentMonth, statusTabFilter, professionalFilter],
-    queryFn: () => accountsApi.list({
-      type: accountType,
-      period: currentMonth,
-      professional_id: professionalFilter,
-      ...(statusTabFilter !== "all" ? { status: statusTabFilter } : {}),
-    }),
+    queryFn: () => accountsApi.list(
+      statusTabFilter === "overdue"
+        ? { type: accountType, period: "overdue", professional_id: professionalFilter }
+        : {
+            type: accountType,
+            period: currentMonth,
+            professional_id: professionalFilter,
+            ...(statusTabFilter !== "all" ? { status: statusTabFilter } : {}),
+          }
+    ),
     enabled: tab === "receivable" || tab === "payable",
   });
+
+  // Todos os vencidos (independente do mês selecionado)
+  const { data: overdueData, isLoading: overdueLoading } = useQuery({
+    queryKey: ["accounts", "overdue-all", professionalFilter],
+    queryFn: () => accountsApi.list({ period: "overdue", professional_id: professionalFilter }),
+    enabled: tab === "overdue",
+  });
+  const overdueAccounts: Account[] = (overdueData as any)?.data || [];
+  const overdueReceivableList = overdueAccounts.filter(a => a.type === "receivable");
+  const overduePayableList = overdueAccounts.filter(a => a.type === "payable");
+  const daysLate = (d?: string) =>
+    d ? Math.max(0, Math.floor((Date.now() - new Date(d).getTime()) / 86400000)) : 0;
+
+
 
   // Patient sessions for invoice
   const { data: patientSessions = [], isLoading: sessionsLoading } = useQuery({
@@ -584,13 +602,15 @@ export default function FinanceiroCompleto() {
               change="Próximos 3 meses" 
               changeType="positive" 
             />
-            <StatCard 
-              icon={AlertCircle} 
-              label="Vencido" 
-              value={fmt(summaryData?.overdueReceivable ?? report?.revenue?.overdue ?? 0)} 
-              change={`${fmt(summaryData?.pendingReceivable ?? report?.revenue?.pending ?? 0)} pendente`} 
-              changeType="negative" 
-            />
+            <button type="button" onClick={() => setTab("overdue")} className="text-left">
+              <StatCard 
+                icon={AlertCircle} 
+                label="Vencido" 
+                value={fmt(summaryData?.overdueTotal ? (summaryData.overdueTotal.receivableValue + summaryData.overdueTotal.payableValue) : (summaryData?.overdueReceivable ?? report?.revenue?.overdue ?? 0))} 
+                change={`${(summaryData?.overdueTotal?.receivableCount ?? 0) + (summaryData?.overdueTotal?.payableCount ?? 0)} lançamento(s) • ver detalhes`} 
+                changeType="negative" 
+              />
+            </button>
           </>
         )}
       </div>
@@ -610,9 +630,13 @@ export default function FinanceiroCompleto() {
           <TabsTrigger value="payable" className="gap-2">
             <ArrowDownRight className="w-4 h-4" />A Pagar
           </TabsTrigger>
+          <TabsTrigger value="overdue" className="gap-2">
+            <AlertCircle className="w-4 h-4" />Vencidos
+          </TabsTrigger>
           <TabsTrigger value="patients" className="gap-2">
             <Users className="w-4 h-4" />Por Paciente
           </TabsTrigger>
+
         </TabsList>
 
         {/* Overview */}
@@ -954,6 +978,107 @@ export default function FinanceiroCompleto() {
             )}
           </TabsContent>
         ))}
+
+        {/* Overdue Tab */}
+        <TabsContent value="overdue" className="mt-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="border-destructive/30">
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">A receber vencido</p>
+                <p className="text-xl font-bold text-destructive">
+                  {fmt(overdueReceivableList.reduce((s, a) => s + Number(a.value), 0))}
+                </p>
+                <p className="text-xs text-muted-foreground">{overdueReceivableList.length} lançamento(s)</p>
+              </CardContent>
+            </Card>
+            <Card className="border-warning/30">
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">A pagar vencido</p>
+                <p className="text-xl font-bold text-warning">
+                  {fmt(overduePayableList.reduce((s, a) => s + Number(a.value), 0))}
+                </p>
+                <p className="text-xs text-muted-foreground">{overduePayableList.length} lançamento(s)</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Impacto no caixa</p>
+                <p className="text-xl font-bold text-foreground">
+                  {fmt(
+                    overdueReceivableList.reduce((s, a) => s + Number(a.value), 0) -
+                    overduePayableList.reduce((s, a) => s + Number(a.value), 0)
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">Todos os meses (não liquidados)</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {overdueLoading ? (
+            <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-xl" />)}</div>
+          ) : overdueAccounts.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground">
+              <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-40" />
+              <p>Nenhum lançamento vencido. Tudo em dia!</p>
+            </div>
+          ) : (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-xl border border-border shadow-card overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Tipo</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Descrição</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Paciente</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Vencimento</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Atraso</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Valor</th>
+                    <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Profissional</th>
+                    <th className="px-5 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {overdueAccounts.map((acc) => (
+                    <tr key={acc.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${acc.type === "receivable" ? "bg-green-500/10 text-green-600" : "bg-destructive/10 text-destructive"}`}>
+                          {acc.type === "receivable" ? "Receita" : "Despesa"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-sm font-medium text-foreground">{acc.description}</td>
+                      <td className="px-5 py-3.5 text-sm text-muted-foreground">{acc.patient?.name || "—"}</td>
+                      <td className="px-5 py-3.5 text-sm text-muted-foreground">
+                        {acc.dueDate ? new Date(acc.dueDate).toLocaleDateString("pt-BR") : "—"}
+                      </td>
+                      <td className="px-5 py-3.5 text-sm font-medium text-destructive">{daysLate(acc.dueDate)} dias</td>
+                      <td className="px-5 py-3.5 text-sm font-semibold text-foreground">{fmt(acc.value)}</td>
+                      <td className="px-5 py-3.5 text-sm text-muted-foreground">{acc.professional?.name || "—"}</td>
+                      <td className="px-5 py-3.5">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="p-1 rounded hover:bg-muted"><MoreHorizontal className="w-4 h-4 text-muted-foreground" /></button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => markPaid.mutate(acc.id)}>
+                              <CheckCircle className="w-4 h-4 mr-2" />Dar Baixa
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEdit(acc)}>
+                              <Edit className="w-4 h-4 mr-2" />Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(acc.id)}>
+                              <Trash2 className="w-4 h-4 mr-2" />Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </motion.div>
+          )}
+        </TabsContent>
+
+
 
         {/* By Patient Tab */}
         <TabsContent value="patients" className="mt-4">
