@@ -66,7 +66,8 @@ router.get('/', async (req, res) => {
       } else if (period === 'open') {
         where.status = { in: ['pending', 'overdue'] };
       } else if (period === 'overdue') {
-        where.status = 'overdue';
+        // Vencidos = tudo que não foi liquidado e já passou do vencimento
+        where.status = { in: ['pending', 'overdue'] };
         where.dueDate = { lt: new Date() };
       }
     } else if (startDate || endDate) {
