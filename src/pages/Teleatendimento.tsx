@@ -1175,14 +1175,55 @@ export default function Teleatendimento() {
                 )}
               </div>
 
+              {/* Modo de captura */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Modo de gravação</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {([
+                    {
+                      key: "online" as const,
+                      title: "Sessão online",
+                      desc: "Captura o áudio da reunião (aba/tela) + seu microfone.",
+                    },
+                    {
+                      key: "presencial" as const,
+                      title: "Presencial (só microfone)",
+                      desc: "Grava apenas pelo microfone e a IA identifica os interlocutores pela fala.",
+                    },
+                  ]).map(opt => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setCaptureMode(opt.key)}
+                      className={`text-left rounded-lg border p-3 transition-colors ${
+                        captureMode === opt.key
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:bg-muted/50"
+                      }`}
+                    >
+                      <p className="text-sm font-medium text-foreground">{opt.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+                    </button>
+                  ))}
+                </div>
+                {captureMode === "presencial" && (
+                  <p className="text-xs text-muted-foreground">
+                    Dica: deixe o dispositivo entre os participantes. A transcrição sai separada por turnos
+                    (Terapeuta / Paciente) e o registro fica marcado como sessão presencial.
+                  </p>
+                )}
+              </div>
+
               <Button
                 size="lg"
                 className="w-full gap-2"
                 disabled={preflight.checked && !preflight.mic}
                 onClick={startCapture}
               >
-                <Phone className="h-5 w-5" /> Iniciar Gravação
+                {captureMode === "presencial" ? <Mic className="h-5 w-5" /> : <Phone className="h-5 w-5" />}
+                {captureMode === "presencial" ? "Iniciar Gravação Presencial" : "Iniciar Gravação"}
               </Button>
+
             </CardContent>
           </Card>
         )}
