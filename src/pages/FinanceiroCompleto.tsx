@@ -111,14 +111,32 @@ export default function FinanceiroCompleto() {
   const accountType = tab === "payable" ? "payable" : "receivable";
   const { data: accountsData, isLoading: accLoading } = useQuery({
     queryKey: ["accounts", accountType, currentMonth, statusTabFilter, professionalFilter],
-    queryFn: () => accountsApi.list({
-      type: accountType,
-      period: currentMonth,
-      professional_id: professionalFilter,
-      ...(statusTabFilter !== "all" ? { status: statusTabFilter } : {}),
-    }),
+    queryFn: () => accountsApi.list(
+      statusTabFilter === "overdue"
+        ? { type: accountType, period: "overdue", professional_id: professionalFilter }
+        : {
+            type: accountType,
+            period: currentMonth,
+            professional_id: professionalFilter,
+            ...(statusTabFilter !== "all" ? { status: statusTabFilter } : {}),
+          }
+    ),
     enabled: tab === "receivable" || tab === "payable",
   });
+
+  // Todos os vencidos (independente do mês selecionado)
+  const { data: overdueData, isLoading: overdueLoading } = useQuery({
+    queryKey: ["accounts", "overdue-all", professionalFilter],
+    queryFn: () => accountsApi.list({ period: "overdue", professional_id: professionalFilter }),
+    enabled: tab === "overdue",
+  });
+  const overdueAccounts: Account[] = (overdueData as any)?.data || [];
+  const overdueReceivableList = overdueAccounts.filter(a => a.type === "receivable");
+  const overduePayableList = overdueAccounts.filter(a => a.type === "payable");
+  const daysLate = (d?: string) =>
+    d ? Math.max(0, Math.floor((Date.now() - new Date(d).getTime()) / 86400000)) : 0;
+
+
 
   // Patient sessions for invoice
   const { data: patientSessions = [], isLoading: sessionsLoading } = useQuery({
