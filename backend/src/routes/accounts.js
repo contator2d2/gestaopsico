@@ -369,10 +369,13 @@ router.post('/bulk-charge', async (req, res) => {
 // POST /api/accounts
 router.post('/', async (req, res) => {
   try {
-    const { type, description, value, dueDate, category, patientId, paymentMethod, notes, recurrence } = req.body;
+    const { type, description, value, dueDate, category, patientId, paymentMethod, notes, recurrence, status, paidAt } = req.body;
     if (!type || !description || !value || !dueDate) {
       return res.status(400).json({ error: 'Tipo, descrição, valor e vencimento são obrigatórios' });
     }
+
+    const isPaid = status === 'paid';
+    const allowedStatus = ['pending', 'paid', 'overdue', 'cancelled'];
 
     const account = await prisma.account.create({
       data: {
@@ -385,7 +388,9 @@ router.post('/', async (req, res) => {
         patientId,
         paymentMethod,
         notes,
-        recurrence
+        recurrence,
+        ...(status && allowedStatus.includes(status) ? { status } : {}),
+        ...(isPaid ? { paidAt: paidAt ? new Date(paidAt) : new Date(dueDate) } : (paidAt ? { paidAt: new Date(paidAt) } : {}))
       },
       include: { patient: { select: { id: true, name: true } } }
     });
