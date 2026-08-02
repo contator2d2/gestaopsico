@@ -137,6 +137,8 @@ model User {
   appointments   Appointment[]
   records        Record[]
   accounts       Account[]     @relation("userAccounts")
+  accountsCreated Account[]    @relation("accountCreator")
+  accountsPaid   Account[]     @relation("accountPayer")
   testTemplates  TestTemplate[] @relation("userTests")
   createdAgents  AiAgent[]     @relation("agentCreator")
   customizations AiAgentCustomization[] @relation("agentCustomizations")
