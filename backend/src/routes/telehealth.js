@@ -765,13 +765,29 @@ async function processTranscription(sessionId, userId, notes = {}) {
     if (!aiKey) throw new Error('Chave de IA não configurada. Configure uma chave OpenAI para transcrição.');
 
     // Transcribe
-    const transcription = await transcribeAudio(filePath, aiKey.apiKey);
+    const rawTranscription = await transcribeAudio(filePath, aiKey.apiKey);
+
+    // Identificação de interlocutores (diarização por IA) — usada principalmente
+    // em sessões presenciais gravadas por um único microfone.
+    let transcription = rawTranscription;
+    if (notes.diarize || notes.modality === 'in_person') {
+      try {
+        const diarized = await diarizeTranscription(rawTranscription, aiKey.provider, aiKey.apiKey);
+        if (diarized && diarized.length > 30) {
+          transcription = diarized;
+          await auditLog(sessionId, 'transcription_diarized', { length: diarized.length });
+        }
+      } catch (e) {
+        console.error('Diarization error:', e);
+      }
+    }
 
     await prisma.telehealthSession.update({
       where: { id: sessionId },
       data: { transcription, transcriptionEndedAt: new Date(), processingStatus: 'organizing', updatedAt: new Date() }
     });
     await auditLog(sessionId, 'transcription_completed', { length: transcription.length });
+
 
     // Organize with AI — include professional notes as context
     let structured = null;
