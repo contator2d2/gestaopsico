@@ -215,7 +215,24 @@ export const eventsApi = {
 // Dashboard
 export const dashboardApi = {
   summary: () => apiRequest<DashboardSummary>("/dashboard/summary"),
+  financialHealth: () => apiRequest<FinancialHealth>("/dashboard/financial-health"),
 };
+
+export interface FinancialHealth {
+  today: { value: number; count: number };
+  future: { value: number; count: number; next30: number };
+  overdue: { value: number; count: number };
+  payable: { value: number; count: number; next30: number };
+  received_last_30: number;
+  health: {
+    score: number;
+    level: "saudavel" | "atencao" | "critico";
+    coverage_ratio: number;
+    default_rate: number;
+    projected_balance_30: number;
+  };
+}
+
 
 // Types
 export interface Patient {
