@@ -608,6 +608,9 @@ router.post('/:id/upload', async (req, res) => {
     // Read session notes from headers
     const motivo = req.headers['x-session-motivo'] ? decodeURIComponent(req.headers['x-session-motivo']) : null;
     const anotacoes = req.headers['x-session-anotacoes'] ? decodeURIComponent(req.headers['x-session-anotacoes']) : null;
+    const modalityHeader = req.headers['x-session-modality'];
+    const modality = modalityHeader === 'in_person' ? 'in_person' : 'telehealth';
+
 
     await prisma.telehealthSession.update({
       where: { id: req.params.id },
