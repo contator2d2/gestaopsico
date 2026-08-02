@@ -15,6 +15,12 @@ export interface Account {
   paymentMethod?: string;
   notes?: string;
   recurrence?: string;
+  professionalId?: string;
+  professional?: { id: string; name: string };
+  paidById?: string;
+  paidBy?: { id: string; name: string };
+  createdById?: string;
+  createdBy?: { id: string; name: string };
   createdAt: string;
 }
 
@@ -63,10 +69,20 @@ export const accountsApi = {
     apiRequest<{ data: Account[]; total: number }>(
       `/accounts${params ? `?${new URLSearchParams(params)}` : ""}`
     ),
-  summary: (month?: string) =>
-    apiRequest<AccountsSummary>(`/accounts/summary${month ? `?month=${month}` : ""}`),
-  tabSummary: (month?: string) =>
-    apiRequest<Record<string, { count: number; total: number }>>(`/accounts/tab-summary${month ? `?month=${month}` : ""}`),
+  summary: (month?: string, professionalId?: string) =>
+    apiRequest<AccountsSummary>(
+      `/accounts/summary?${new URLSearchParams({
+        ...(month ? { month } : {}),
+        ...(professionalId ? { professional_id: professionalId } : {}),
+      })}`
+    ),
+  tabSummary: (month?: string, professionalId?: string) =>
+    apiRequest<Record<string, { count: number; total: number }>>(
+      `/accounts/tab-summary?${new URLSearchParams({
+        ...(month ? { month } : {}),
+        ...(professionalId ? { professional_id: professionalId } : {}),
+      })}`
+    ),
   patientFinancial: (patientId: string) =>
     apiRequest<PatientFinancialView>(`/accounts/patient/${patientId}/financial`),
   bulkPay: (data: { ids: string[]; paymentMethod?: string; paidAt?: string }) =>
