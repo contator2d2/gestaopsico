@@ -23,6 +23,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
@@ -220,7 +221,7 @@ export default function FinanceiroCompleto() {
   const closeDialog = () => {
     setDialogOpen(false);
     setEditId(null);
-    setForm({ type: "receivable", description: "", value: 0, dueDate: "", category: "", paymentMethod: "", notes: "", status: "pending" });
+    setForm({ type: "receivable", description: "", value: 0, dueDate: "", category: "", paymentMethod: "", notes: "", status: "pending", paidAt: "" } as any);
   };
 
   const openNew = (type: "receivable" | "payable") => {
@@ -1034,6 +1035,37 @@ export default function FinanceiroCompleto() {
                 <Label>Vencimento *</Label>
                 <Input type="date" value={form.dueDate} onChange={e => set("dueDate", e.target.value)} />
               </div>
+            </div>
+            <div className="rounded-lg border p-3 space-y-3 bg-muted/30">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label className="cursor-pointer" htmlFor="already-paid">
+                    {form.type === "payable" ? "Já foi paga" : "Já foi recebida"}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Use para lançar meses anteriores já liquidados
+                  </p>
+                </div>
+                <Switch
+                  id="already-paid"
+                  checked={form.status === "paid"}
+                  onCheckedChange={(v) => {
+                    set("status", v ? "paid" : "pending");
+                    if (v && !(form as any).paidAt) set("paidAt" as any, form.dueDate || "");
+                    if (!v) set("paidAt" as any, "");
+                  }}
+                />
+              </div>
+              {form.status === "paid" && (
+                <div>
+                  <Label>{form.type === "payable" ? "Data do pagamento" : "Data do recebimento"}</Label>
+                  <Input
+                    type="date"
+                    value={((form as any).paidAt || "").split("T")[0]}
+                    onChange={e => set("paidAt" as any, e.target.value)}
+                  />
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
