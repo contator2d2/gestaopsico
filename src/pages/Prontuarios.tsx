@@ -362,7 +362,11 @@ export default function Prontuarios() {
               <Plus className="w-4 h-4 mr-2" /> Lançar Sessão Passada
             </Button>
           )}
+          <Button variant="outline" onClick={() => setIsVoiceNoteOpen(true)}>
+            <Mic className="w-4 h-4 mr-2" /> Nota de voz (IA)
+          </Button>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+
             <DialogTrigger asChild>
               <Button className="gradient-primary border-0 shadow-glow" onClick={() => {
                 const newForm = { ...EMPTY_FORM };
