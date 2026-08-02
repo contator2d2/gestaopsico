@@ -49,6 +49,15 @@ export default function FinancialHealthCards() {
     level: "nao" as const, message: "Sem dados financeiros suficientes.",
   };
   const wMeta = withdrawMeta[w.level] ?? withdrawMeta.nao;
+  const fc = data.forecast ?? {
+    expected_30: data.future.next30,
+    scheduled_30: 0,
+    scheduled_count: 0,
+    recurring_30: 0,
+    active_patients: 0,
+    avg_session_value: 0,
+    billed_30: data.future.next30,
+  };
 
   return (
     <motion.div
@@ -95,18 +104,29 @@ export default function FinancialHealthCards() {
             </div>
             <div>
               <CardTitle className="text-sm font-semibold">A receber (futuro)</CardTitle>
-              <CardDescription className="text-xs">Vencimentos a partir de amanhã</CardDescription>
+              <CardDescription className="text-xs">Previsão 30d (agenda + recorrência)</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-2xl font-display font-bold text-foreground">{brl(data.future.value)}</p>
+          <p className="text-2xl font-display font-bold text-foreground">{brl(fc.expected_30)}</p>
           <p className="text-xs text-muted-foreground mt-1">
-            {data.future.count} cobrança(s) programada(s)
+            Previsão para os próximos 30 dias
           </p>
-          <p className="text-xs text-muted-foreground mt-2">
-            Próximos 30 dias: <span className="font-semibold text-foreground">{brl(data.future.next30)}</span>
-          </p>
+          <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+            <p>
+              Cobranças já lançadas:{" "}
+              <span className="font-semibold text-foreground">{brl(fc.billed_30)}</span>
+            </p>
+            <p>
+              Agenda marcada ({fc.scheduled_count}):{" "}
+              <span className="font-semibold text-foreground">{brl(fc.scheduled_30)}</span>
+            </p>
+            <p>
+              Recorrência de {fc.active_patients} paciente(s) ativos:{" "}
+              <span className="font-semibold text-foreground">{brl(fc.recurring_30)}</span>
+            </p>
+          </div>
           <Link to="/financeiro" className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-3">
             Ver projeção <ArrowRight className="w-3 h-3" />
           </Link>

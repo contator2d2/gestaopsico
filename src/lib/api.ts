@@ -221,6 +221,15 @@ export const dashboardApi = {
 export interface FinancialHealth {
   today: { value: number; count: number };
   future: { value: number; count: number; next30: number };
+  forecast?: {
+    expected_30: number;
+    scheduled_30: number;
+    scheduled_count: number;
+    recurring_30: number;
+    active_patients: number;
+    avg_session_value: number;
+    billed_30: number;
+  };
   overdue: { value: number; count: number };
   payable: { value: number; count: number; next30: number; overdue?: number };
   received_last_30: number;
