@@ -320,13 +320,15 @@ export default function Teleatendimento() {
       });
       micStreamRef.current = micStream;
 
-      const supportsDisplayCapture = typeof navigator.mediaDevices?.getDisplayMedia === "function";
+      const supportsDisplayCapture =
+        captureMode === "online" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
       let recordingStream: MediaStream;
       const audioCtx = new AudioContext({ sampleRate: 48000 });
       const dest = audioCtx.createMediaStreamDestination();
       audioContextRef.current = audioCtx;
 
       if (supportsDisplayCapture) {
+
         try {
           const displayStream = await navigator.mediaDevices.getDisplayMedia({
             video: true,
