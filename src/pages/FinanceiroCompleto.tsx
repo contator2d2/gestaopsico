@@ -221,7 +221,7 @@ export default function FinanceiroCompleto() {
   const closeDialog = () => {
     setDialogOpen(false);
     setEditId(null);
-    setForm({ type: "receivable", description: "", value: 0, dueDate: "", category: "", paymentMethod: "", notes: "", status: "pending" });
+    setForm({ type: "receivable", description: "", value: 0, dueDate: "", category: "", paymentMethod: "", notes: "", status: "pending", paidAt: "" } as any);
   };
 
   const openNew = (type: "receivable" | "payable") => {
