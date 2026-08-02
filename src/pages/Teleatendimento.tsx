@@ -588,7 +588,7 @@ export default function Teleatendimento() {
     } catch (err: any) {
       toast.error("Erro ao finalizar áudio: " + err.message);
     }
-  }, [activeSession, sessionNotes, selectedAgentId]);
+  }, [activeSession, sessionNotes, selectedAgentId, captureMode]);
 
   const retryMutation = useMutation({
     mutationFn: (id: string) => telehealthApi.retry(id),
