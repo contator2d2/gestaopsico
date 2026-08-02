@@ -12,7 +12,7 @@ export interface StoredSegment {
   blob: Blob;
   createdAt: number;
   // Notes/context so a segment can be uploaded/finalized after a crash/reload.
-  notes?: { motivo?: string; anotacoes?: string; agentId?: string };
+  notes?: { motivo?: string; anotacoes?: string; agentId?: string; modality?: "in_person" | "telehealth" };
   final?: boolean; // true when this segment was the last one before stop
 }
 
