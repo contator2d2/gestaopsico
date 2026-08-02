@@ -30,7 +30,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import StatCard from "@/components/StatCard";
 import { accountsApi, type Account, type AccountsSummary } from "@/lib/portalApi";
-import { invoicesApi, pacientesApi, importApi, type Patient } from "@/lib/api";
+import { invoicesApi, pacientesApi, importApi, apiRequest, type Patient } from "@/lib/api";
 import { usePatients } from "@/hooks/usePatients";
 import { format, addMonths, startOfMonth, endOfMonth, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -81,7 +81,15 @@ export default function FinanceiroCompleto() {
   const [dateFilterEnd, setDateFilterEnd] = useState("");
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [statusTabFilter, setStatusTabFilter] = useState<string>("all");
+  const [professionalFilter, setProfessionalFilter] = useState<string>("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: professionals = [] } = useQuery<any[]>({
+    queryKey: ["professionals"],
+    queryFn: () => apiRequest<any[]>("/settings/professionals"),
+  });
+  const professionalList = Array.isArray(professionals) ? professionals : [];
+  const hasMultipleProfessionals = professionalList.length > 1;
 
   const { data: patients = [] } = usePatients();
   const patientList: Patient[] = Array.isArray(patients) ? patients : (patients as any)?.data || [];
@@ -95,17 +103,18 @@ export default function FinanceiroCompleto() {
 
   // Summary stats based on current month
   const { data: summaryData } = useQuery({
-    queryKey: ["accounts-summary", currentMonth],
-    queryFn: () => accountsApi.summary(currentMonth),
+    queryKey: ["accounts-summary", currentMonth, professionalFilter],
+    queryFn: () => accountsApi.summary(currentMonth, professionalFilter),
   });
 
   // Accounts list per tab
   const accountType = tab === "payable" ? "payable" : "receivable";
   const { data: accountsData, isLoading: accLoading } = useQuery({
-    queryKey: ["accounts", accountType, currentMonth, statusTabFilter],
+    queryKey: ["accounts", accountType, currentMonth, statusTabFilter, professionalFilter],
     queryFn: () => accountsApi.list({
       type: accountType,
       period: currentMonth,
+      professional_id: professionalFilter,
       ...(statusTabFilter !== "all" ? { status: statusTabFilter } : {}),
     }),
     enabled: tab === "receivable" || tab === "payable",
@@ -123,6 +132,7 @@ export default function FinanceiroCompleto() {
       editId ? accountsApi.update(editId, data) : accountsApi.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["accounts"] });
+      qc.invalidateQueries({ queryKey: ["accounts-summary"] });
       qc.invalidateQueries({ queryKey: ["monthly-report"] });
       toast({ title: editId ? "Conta atualizada!" : "Conta criada!" });
       closeDialog();
@@ -461,6 +471,19 @@ export default function FinanceiroCompleto() {
           <p className="text-muted-foreground mt-1">Receitas, despesas, faturas e fluxo de caixa</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          {hasMultipleProfessionals && (
+            <Select value={professionalFilter} onValueChange={setProfessionalFilter}>
+              <SelectTrigger className="h-9 w-[190px]">
+                <SelectValue placeholder="Profissional" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os profissionais</SelectItem>
+                {professionalList.map((p: any) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button variant="outline" size="sm" onClick={() => setShowDateFilter(!showDateFilter)}>
             <Filter className="w-4 h-4 mr-2" />Filtros
           </Button>
