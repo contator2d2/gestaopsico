@@ -231,7 +231,7 @@ export default function FinanceiroCompleto() {
   const closeDialog = () => {
     setDialogOpen(false);
     setEditId(null);
-    setForm({ type: "receivable", description: "", value: 0, dueDate: "", category: "", paymentMethod: "", notes: "", status: "pending", paidAt: "" } as any);
+    setForm({ type: "receivable", description: "", value: 0, dueDate: "", category: "", paymentMethod: "", notes: "", status: "pending", paidAt: "", professionalId: "", paidById: "" } as any);
   };
 
   const openNew = (type: "receivable" | "payable") => {
@@ -900,6 +900,8 @@ export default function FinanceiroCompleto() {
                       <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Vencimento</th>
                       <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Valor</th>
                       <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Categoria</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Profissional</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">{t === "payable" ? "Pago por" : "Recebido por"}</th>
                       <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-5 py-3">Status</th>
                       <th className="px-5 py-3"></th>
                     </tr>
@@ -916,6 +918,10 @@ export default function FinanceiroCompleto() {
                           </td>
                           <td className="px-5 py-3.5 text-sm font-semibold text-foreground">{fmt(acc.value)}</td>
                           <td className="px-5 py-3.5 text-sm text-muted-foreground">{acc.category || "—"}</td>
+                          <td className="px-5 py-3.5 text-sm text-muted-foreground">{acc.professional?.name || "—"}</td>
+                          <td className="px-5 py-3.5 text-sm text-muted-foreground">
+                            {acc.status === "paid" ? (acc.paidBy?.name || acc.professional?.name || "—") : "—"}
+                          </td>
                           <td className="px-5 py-3.5">
                             <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${sc.class}`}>{sc.label}</span>
                           </td>
@@ -1034,6 +1040,25 @@ export default function FinanceiroCompleto() {
                 </Select>
               </div>
             )}
+            {hasMultipleProfessionals && (
+              <div>
+                <Label>Profissional responsável</Label>
+                <Select
+                  value={(form as any).professionalId || ""}
+                  onValueChange={v => set("professionalId" as any, v)}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione o profissional" /></SelectTrigger>
+                  <SelectContent>
+                    {professionalList.map((p: any) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Define de quem é esta {form.type === "payable" ? "despesa" : "receita"}
+                </p>
+              </div>
+            )}
             <div>
               <Label>Descrição *</Label>
               <Input value={form.description} onChange={e => set("description", e.target.value)} placeholder="Consulta individual" />
@@ -1080,13 +1105,31 @@ export default function FinanceiroCompleto() {
                 />
               </div>
               {form.status === "paid" && (
-                <div>
-                  <Label>{form.type === "payable" ? "Data do pagamento" : "Data do recebimento"}</Label>
-                  <Input
-                    type="date"
-                    value={((form as any).paidAt || "").split("T")[0]}
-                    onChange={e => set("paidAt" as any, e.target.value)}
-                  />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label>{form.type === "payable" ? "Data do pagamento" : "Data do recebimento"}</Label>
+                    <Input
+                      type="date"
+                      value={((form as any).paidAt || "").split("T")[0]}
+                      onChange={e => set("paidAt" as any, e.target.value)}
+                    />
+                  </div>
+                  {hasMultipleProfessionals && (
+                    <div>
+                      <Label>{form.type === "payable" ? "Pago por" : "Recebido por"}</Label>
+                      <Select
+                        value={(form as any).paidById || ""}
+                        onValueChange={v => set("paidById" as any, v)}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          {professionalList.map((p: any) => (
+                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
