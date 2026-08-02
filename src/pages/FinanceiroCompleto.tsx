@@ -1054,7 +1054,22 @@ export default function FinanceiroCompleto() {
                 {opt.label}
               </button>
             ))}
+            <div className="ml-auto">
+              <button
+                type="button"
+                onClick={() => setGroupByPatient(v => !v)}
+                className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                  groupByPatient
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-muted-foreground border-border hover:bg-muted"
+                }`}
+              >
+                {groupByPatient ? <Users className="w-3.5 h-3.5" /> : <LayoutList className="w-3.5 h-3.5" />}
+                {groupByPatient ? "Agrupado por paciente" : "Lista simples"}
+              </button>
+            </div>
           </div>
+
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="border-destructive/30">
