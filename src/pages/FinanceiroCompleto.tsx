@@ -124,17 +124,42 @@ export default function FinanceiroCompleto() {
     enabled: tab === "receivable" || tab === "payable",
   });
 
-  // Todos os vencidos (independente do mês selecionado)
+  // Todos em aberto (pendentes + vencidos, independente do mês selecionado)
   const { data: overdueData, isLoading: overdueLoading } = useQuery({
-    queryKey: ["accounts", "overdue-all", professionalFilter],
-    queryFn: () => accountsApi.list({ period: "overdue", professional_id: professionalFilter }),
+    queryKey: ["accounts", "open-all", professionalFilter],
+    queryFn: () => accountsApi.list({ period: "open", professional_id: professionalFilter }),
     enabled: tab === "overdue",
   });
-  const overdueAccounts: Account[] = (overdueData as any)?.data || [];
-  const overdueReceivableList = overdueAccounts.filter(a => a.type === "receivable");
-  const overduePayableList = overdueAccounts.filter(a => a.type === "payable");
   const daysLate = (d?: string) =>
     d ? Math.max(0, Math.floor((Date.now() - new Date(d).getTime()) / 86400000)) : 0;
+  const allOpenAccounts: Account[] = (overdueData as any)?.data || [];
+  const isLate = (a: Account) => !!a.dueDate && new Date(a.dueDate).getTime() < Date.now();
+  // Filtro interno da aba: vencidos, pendentes (a vencer) ou tudo em aberto
+  const [overdueScope, setOverdueScope] = useState<"overdue" | "pending" | "all">("overdue");
+  const overdueAccounts: Account[] = allOpenAccounts.filter(a =>
+    overdueScope === "all" ? true : overdueScope === "overdue" ? isLate(a) : !isLate(a)
+  );
+  const overdueReceivableList = overdueAccounts.filter(a => a.type === "receivable");
+  const overduePayableList = overdueAccounts.filter(a => a.type === "payable");
+
+  // Pacientes com valores em aberto (pendentes + vencidos)
+  const openPatients = Object.values(
+    overdueAccounts
+      .filter(a => a.type === "receivable")
+      .reduce((acc: Record<string, any>, a) => {
+        const key = a.patient?.id || "sem-paciente";
+        if (!acc[key]) {
+          acc[key] = { id: key, name: a.patient?.name || "Sem paciente", total: 0, count: 0, overdueCount: 0, oldest: 0 };
+        }
+        acc[key].total += Number(a.value);
+        acc[key].count += 1;
+        if (isLate(a)) {
+          acc[key].overdueCount += 1;
+          acc[key].oldest = Math.max(acc[key].oldest, daysLate(a.dueDate));
+        }
+        return acc;
+      }, {})
+  ).sort((a: any, b: any) => b.total - a.total) as any[];
 
 
 
