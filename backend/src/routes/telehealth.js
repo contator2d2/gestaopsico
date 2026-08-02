@@ -229,8 +229,66 @@ async function transcribeAudio(filePath, apiKey) {
   }
 }
 
+// Helper: identifica interlocutores na transcrição (diarização assistida por IA).
+// Usa o próprio texto (marcas de fala, tom, conteúdo) para separar turnos, pois
+// a gravação presencial vem de um único microfone.
+async function diarizeTranscription(transcription, provider, apiKey) {
+  if (!transcription || transcription.length < 30) return null;
+  const fetch = (await import('node-fetch')).default;
+
+  const systemPrompt = `Você separa falas de uma gravação de sessão de psicoterapia em português do Brasil, feita por um único microfone (sessão presencial).
+
+Tarefa: reescrever a transcrição em turnos de fala, identificando os interlocutores pelo conteúdo e pelo padrão de fala.
+
+Regras obrigatórias:
+- Formato: uma linha por turno, começando com o rótulo seguido de dois-pontos. Ex.: "Terapeuta: ..." / "Paciente: ..."
+- Use "Terapeuta" para quem conduz, faz perguntas, orienta e devolve intervenções técnicas.
+- Use "Paciente" para quem relata vivências, sintomas e queixas. Se houver mais de um, use "Paciente 1", "Paciente 2" (ou "Acompanhante" quando claramente um terceiro).
+- Não invente conteúdo, não resuma, não corte trechos: preserve integralmente o que foi dito, apenas organizado em turnos.
+- Corrija apenas pontuação e quebras óbvias.
+- Se em algum trecho for impossível determinar quem fala, use "Interlocutor não identificado".
+- Responda somente com a transcrição diarizada, sem comentários.`;
+
+  let url, body, headers = { 'Content-Type': 'application/json' };
+  if (provider === 'openai') {
+    url = 'https://api.openai.com/v1/chat/completions';
+    headers['Authorization'] = `Bearer ${apiKey}`;
+    body = {
+      model: 'gpt-4o',
+      temperature: 0,
+      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: transcription }]
+    };
+  } else if (provider === 'anthropic') {
+    url = 'https://api.anthropic.com/v1/messages';
+    headers['x-api-key'] = apiKey;
+    headers['anthropic-version'] = '2023-06-01';
+    body = {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 8000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: transcription }]
+    };
+  } else {
+    url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    body = { contents: [{ parts: [{ text: `${systemPrompt}\n\nTranscrição:\n${transcription}` }] }] };
+  }
+
+  const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), timeout: 300000 });
+  if (!resp.ok) {
+    throw new Error(`Diarização falhou: ${resp.status} - ${await resp.text().catch(() => '')}`);
+  }
+  const data = await resp.json();
+  const text = provider === 'openai'
+    ? data?.choices?.[0]?.message?.content
+    : provider === 'anthropic'
+      ? data?.content?.[0]?.text
+      : data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  return (text || '').trim() || null;
+}
+
 // Helper: organize transcription with AI
 async function organizeWithAi(transcription, provider, apiKey) {
+
   const fetch = (await import('node-fetch')).default;
   
   const systemPrompt = `Você é uma assistente clínica especializada em Terapia Cognitivo-Comportamental (TCC), treinada para produzir evoluções clínicas detalhadas, organizadas e humanizadas a partir de transcrições de sessão.
