@@ -6,7 +6,8 @@ import {
   Plus, CheckCircle, AlertCircle, Clock, Wallet, Download,
   MoreHorizontal, Edit, Trash2, PiggyBank, FileText,
   Users, Calendar, ChevronLeft, ChevronRight, Loader2, Receipt,
-  Upload, Search, Filter
+  Upload, Search, Filter, ChevronDown, LayoutList
+
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -160,6 +161,33 @@ export default function FinanceiroCompleto() {
         return acc;
       }, {})
   ).sort((a: any, b: any) => b.total - a.total) as any[];
+
+  // Agrupamento por paciente (aba Vencidos/Em aberto)
+  const [groupByPatient, setGroupByPatient] = useState(true);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const toggleGroup = (id: string) =>
+    setExpandedGroups(prev => ({ ...prev, [id]: !prev[id] }));
+  const patientGroups = useMemo(() => {
+    const map: Record<string, { id: string; name: string; items: Account[]; total: number; overdueCount: number; oldest: number }> = {};
+    overdueAccounts.forEach(a => {
+      const key = a.type === "payable" ? "__despesas" : (a.patient?.id || "sem-paciente");
+      const name = a.type === "payable" ? "Despesas (sem paciente)" : (a.patient?.name || "Sem paciente");
+      if (!map[key]) map[key] = { id: key, name, items: [], total: 0, overdueCount: 0, oldest: 0 };
+      map[key].items.push(a);
+      map[key].total += Number(a.value);
+      if (isLate(a)) {
+        map[key].overdueCount += 1;
+        map[key].oldest = Math.max(map[key].oldest, daysLate(a.dueDate));
+      }
+    });
+    return Object.values(map)
+      .map(g => ({
+        ...g,
+        items: g.items.sort((x, y) => new Date(x.dueDate || 0).getTime() - new Date(y.dueDate || 0).getTime()),
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [overdueAccounts]);
+
 
 
 
@@ -1026,7 +1054,22 @@ export default function FinanceiroCompleto() {
                 {opt.label}
               </button>
             ))}
+            <div className="ml-auto">
+              <button
+                type="button"
+                onClick={() => setGroupByPatient(v => !v)}
+                className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                  groupByPatient
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-muted-foreground border-border hover:bg-muted"
+                }`}
+              >
+                {groupByPatient ? <Users className="w-3.5 h-3.5" /> : <LayoutList className="w-3.5 h-3.5" />}
+                {groupByPatient ? "Agrupado por paciente" : "Lista simples"}
+              </button>
+            </div>
           </div>
+
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="border-destructive/30">
@@ -1099,7 +1142,84 @@ export default function FinanceiroCompleto() {
               <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-40" />
               <p>Nenhum lançamento {overdueScope === "pending" ? "pendente" : overdueScope === "overdue" ? "vencido" : "em aberto"}. Tudo em dia!</p>
             </div>
+          ) : groupByPatient ? (
+            <div className="space-y-3">
+              {patientGroups.map(group => {
+                const open = expandedGroups[group.id] ?? true;
+                return (
+                  <div key={group.id} className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(group.id)}
+                        className="flex items-center gap-2 min-w-0 flex-1 text-left"
+                      >
+                        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${open ? "" : "-rotate-90"}`} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground truncate">{group.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {group.items.length} consulta(s)/lançamento(s)
+                            {group.overdueCount > 0 && ` • ${group.overdueCount} vencido(s) • até ${group.oldest}d`}
+                          </p>
+                        </div>
+                      </button>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold text-foreground">{fmt(group.total)}</p>
+                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${group.overdueCount > 0 ? statusConfig.overdue.class : statusConfig.pending.class}`}>
+                          {group.overdueCount > 0 ? "Vencido" : "Pendente"}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0"
+                        onClick={() => group.items.forEach(i => markPaid.mutate(i.id))}
+                      >
+                        <CheckCircle className="w-4 h-4 mr-1.5" />Baixar todas
+                      </Button>
+                    </div>
+                    {open && (
+                      <div className="divide-y divide-border border-t border-border">
+                        {group.items.map(acc => (
+                          <div key={acc.id} className="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-foreground truncate">{acc.description}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Venc. {acc.dueDate ? new Date(acc.dueDate).toLocaleDateString("pt-BR") : "—"}
+                                {isLate(acc) && ` • ${daysLate(acc.dueDate)} dias de atraso`}
+                                {acc.professional?.name && ` • ${acc.professional.name}`}
+                              </p>
+                            </div>
+                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${isLate(acc) ? statusConfig.overdue.class : statusConfig.pending.class}`}>
+                              {isLate(acc) ? "Vencido" : "Pendente"}
+                            </span>
+                            <p className="text-sm font-semibold text-foreground w-28 text-right">{fmt(acc.value)}</p>
+                            <Button size="sm" variant="secondary" onClick={() => markPaid.mutate(acc.id)}>
+                              <CheckCircle className="w-4 h-4 mr-1.5" />Dar baixa
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="p-1 rounded hover:bg-muted"><MoreHorizontal className="w-4 h-4 text-muted-foreground" /></button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openEdit(acc)}>
+                                  <Edit className="w-4 h-4 mr-2" />Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(acc.id)}>
+                                  <Trash2 className="w-4 h-4 mr-2" />Excluir
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           ) : (
+
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-card rounded-xl border border-border shadow-card overflow-x-auto">
               <table className="w-full">
                 <thead>
