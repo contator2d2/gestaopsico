@@ -28,6 +28,9 @@ export interface AccountsSummary {
   overdueReceivable: number;
   cashFlow: number;
   balance: number;
+  openingBalance?: number;
+  closingBalance?: number;
+  projectedClosingBalance?: number;
 }
 
 export interface PatientFinancialView {
