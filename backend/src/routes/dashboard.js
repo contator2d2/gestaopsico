@@ -210,6 +210,16 @@ router.get('/financial-health', async (req, res) => {
     res.json({
       today: { value: todayValue, count: todayRec._count || 0 },
       future: { value: futureValue, count: futureRec._count || 0, next30: future30 },
+      forecast: {
+        expected_30: Number(expected30.toFixed(2)),
+        scheduled_30: Number(scheduled30.toFixed(2)),
+        scheduled_count: futureAppointments.length,
+        recurring_30: Number(recurring30.toFixed(2)),
+        active_patients: activePatients.length,
+        avg_session_value: Number(avgSessionValue.toFixed(2)),
+        billed_30: Number((future30 + todayValue).toFixed(2))
+      },
+
       overdue: { value: overdueValue, count: overdueRec._count || 0 },
       payable: { value: payableValue, count: futurePay._count || 0, next30: payable30, overdue: overduePayables },
       received_last_30: received30,
