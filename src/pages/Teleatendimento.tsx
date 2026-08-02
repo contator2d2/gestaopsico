@@ -371,11 +371,18 @@ export default function Teleatendimento() {
         }
       } else {
         const micSource = audioCtx.createMediaStreamSource(new MediaStream([micStream.getAudioTracks()[0].clone()]));
-        micSource.connect(dest);
+        const micGain = audioCtx.createGain();
+        micGain.gain.value = captureMode === "presencial" ? 1.5 : 1.0;
+        micSource.connect(micGain).connect(dest);
         recordingStream = dest.stream;
         displayStreamRef.current = null;
-        toast.info("No celular, a captura será feita pelo microfone do aparelho.");
+        toast.info(
+          captureMode === "presencial"
+            ? "Gravação presencial: somente microfone. Deixe o aparelho entre os participantes."
+            : "No celular, a captura será feita pelo microfone do aparelho."
+        );
       }
+
 
       // Monitor de nível
       startLevelMonitor(recordingStream, audioCtx);
