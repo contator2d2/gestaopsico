@@ -158,7 +158,7 @@ router.get('/financial-health', async (req, res) => {
       withdrawMessage = 'Você pode retirar este valor mantendo as contas a pagar e a reserva de segurança cobertas.';
     } else if (safeWithdrawal > 0) {
       withdrawLevel = 'cuidado';
-      withdrawLevel = 'cuidado';
+
       withdrawMessage = 'Há caixa disponível, mas a inadimplência/cobertura está baixa. Retire com cautela.';
     }
 
